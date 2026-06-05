@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { VisionLogoWhite } from '@/components/VisionLogo'
 import {
@@ -174,6 +175,9 @@ function AppMockup() {
 
 // ─── Page ────────────────────────────────────────────────────────
 export default function LandingPage() {
+  const [showContactForm, setShowContactForm] = useState(false)
+  const [formData, setFormData] = useState({ email: '', empresa: '', rubro: '', turnos: '' })
+
   return (
     <div style={{ background: '#07070F', minHeight: '100vh', color: 'white', fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' }}>
 
@@ -210,9 +214,9 @@ export default function LandingPage() {
           <Link href="/login" style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: 500, textDecoration: 'none', padding: '8px 14px', borderRadius: 8 }}>
             Ingresar
           </Link>
-          <Link href="/register" style={{ background: 'linear-gradient(135deg,#3b82f6,#2563FF)', color: 'white', fontSize: 13, fontWeight: 700, textDecoration: 'none', padding: '8px 20px', borderRadius: 9, boxShadow: '0 0 22px rgba(37,99,255,0.35)' }}>
-            Empezar gratis →
-          </Link>
+          <button onClick={() => setShowContactForm(true)} style={{ background: 'linear-gradient(135deg,#3b82f6,#2563FF)', color: 'white', fontSize: 13, fontWeight: 700, textDecoration: 'none', padding: '8px 20px', borderRadius: 9, boxShadow: '0 0 22px rgba(37,99,255,0.35)', border: 'none', cursor: 'pointer' }}>
+            Solicitar acceso →
+          </button>
         </div>
       </nav>
 
@@ -245,11 +249,11 @@ export default function LandingPage() {
             </p>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 36 }}>
-              <Link href="/register" style={{ background: 'linear-gradient(135deg,#3b82f6,#2563FF)', color: 'white', fontWeight: 700, fontSize: 14, textDecoration: 'none', padding: '13px 26px', borderRadius: 11, boxShadow: '0 0 28px rgba(37,99,255,0.38)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                Probá gratis <ArrowRight size={15} />
-              </Link>
-              <Link href="/login" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', fontWeight: 600, fontSize: 14, textDecoration: 'none', padding: '13px 26px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.1)' }}>
-                Ver demo
+              <button onClick={() => setShowContactForm(true)} style={{ background: 'linear-gradient(135deg,#3b82f6,#2563FF)', color: 'white', fontWeight: 700, fontSize: 14, textDecoration: 'none', padding: '13px 26px', borderRadius: 11, boxShadow: '0 0 28px rgba(37,99,255,0.38)', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer' }}>
+                Solicitar acceso <ArrowRight size={15} />
+              </button>
+              <Link href="#contacto" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', fontWeight: 600, fontSize: 14, textDecoration: 'none', padding: '13px 26px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.1)' }}>
+                Ver más información
               </Link>
             </div>
 
@@ -462,11 +466,11 @@ export default function LandingPage() {
               Unite a los negocios que ya usan Vision OS para operar mejor, crecer más rápido y dejar de perder tiempo en tareas administrativas.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link href="/register" style={{ background: 'linear-gradient(135deg,#3b82f6,#2563FF)', color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none', padding: '14px 32px', borderRadius: 12, boxShadow: '0 0 36px rgba(37,99,255,0.45)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                Crear cuenta gratis <ArrowRight size={16} />
-              </Link>
+              <button onClick={() => setShowContactForm(true)} style={{ background: 'linear-gradient(135deg,#3b82f6,#2563FF)', color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none', padding: '14px 32px', borderRadius: 12, boxShadow: '0 0 36px rgba(37,99,255,0.45)', display: 'flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer' }}>
+                Solicitar acceso <ArrowRight size={16} />
+              </button>
               <Link href="/login" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', fontWeight: 600, fontSize: 15, textDecoration: 'none', padding: '14px 28px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
-                Ya tengo cuenta
+                Ya tengo invitación
               </Link>
             </div>
           </div>
@@ -485,6 +489,44 @@ export default function LandingPage() {
           © 2026 VISION OS
         </p>
       </footer>
+
+      {/* ── CONTACT FORM MODAL ──────────────────────────────────── */}
+      {showContactForm && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 40, width: '100%', maxWidth: 450, boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 24, fontWeight: 700 }}>Solicitar acceso a Vision OS</h2>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
+              <input type="email" placeholder="tu@email.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 13, outline: 'none', fontFamily: "'Inter', sans-serif" }} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nombre de tu empresa</label>
+              <input type="text" placeholder="Mi Negocio S.A." value={formData.empresa} onChange={e => setFormData({...formData, empresa: e.target.value})} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 13, outline: 'none', fontFamily: "'Inter', sans-serif" }} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rubro</label>
+              <input type="text" placeholder="Ej: Centro de Estética, Kinesiología..." value={formData.rubro} onChange={e => setFormData({...formData, rubro: e.target.value})} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 13, outline: 'none', fontFamily: "'Inter', sans-serif" }} />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Turnos/mes aproximado</label>
+              <input type="text" placeholder="Ej: 50, 100..." value={formData.turnos} onChange={e => setFormData({...formData, turnos: e.target.value})} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 13, outline: 'none', fontFamily: "'Inter', sans-serif" }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => { setShowContactForm(false); alert('Gracias por tu interés. Te contactaremos pronto.'); }} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                Enviar solicitud
+              </button>
+              <button onClick={() => setShowContactForm(false)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
