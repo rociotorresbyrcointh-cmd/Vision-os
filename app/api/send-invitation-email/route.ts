@@ -1,16 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY!
+const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
 
 export async function POST(req: NextRequest) {
+  console.log('=== SEND EMAIL DEBUG START ===')
+  console.log('API Key presente:', !!RESEND_API_KEY)
+  console.log('API Key length:', RESEND_API_KEY?.length)
+
   try {
     const { email, empresa, code } = await req.json()
+    console.log('Request params:', { email, empresa, code })
 
     if (!email || !code) {
       return NextResponse.json({ error: 'Email y code requeridos' }, { status: 400 })
     }
 
+    if (!RESEND_API_KEY) {
+      return NextResponse.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 })
+    }
+
     const registroLink = `https://vision-os-delta.vercel.app/register?code=${code}`
+
+    const payload = {
+      from: 'onboarding@resend.dev',
+      to: email,
+      subject: `Tu acceso a Vision OS - Código: ${code}`,
+      html: `<h1>Hola ${empresa}</h1><p>Tu código es: <strong>${code}</strong></p><p><a href="${registroLink}">Registrate aquí</a></p>`,
+    }
+
+    console.log('Sending to Resend with payload:', JSON.stringify(payload))
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -18,82 +36,37 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: 'Vision OS <onboarding@resend.dev>',
-        to: email,
-        subject: `🎉 Tu acceso a Vision OS está listo - Código: ${code}`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg,#2563FF,#1d4ed8); color: white; padding: 20px; border-radius: 8px; text-align: center; }
-    .content { padding: 20px; background: #f5f5f5; margin: 20px 0; border-radius: 8px; }
-    .code-box { background: #0f172a; color: #60a5fa; padding: 16px; border-radius: 8px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 20px 0; }
-    .button { display: inline-block; background: linear-gradient(135deg,#2563FF,#1d4ed8); color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; margin: 20px 0; }
-    .footer { color: #999; font-size: 12px; text-align: center; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>¡Bienvenido a Vision OS!</h1>
-    </div>
-
-    <div class="content">
-      <h2>¡Hola ${empresa}! 🎉</h2>
-      <p>Tu acceso a Vision OS está listo. Aquí está tu código de invitación:</p>
-
-      <div class="code-box">${code}</div>
-
-      <p style="text-align: center;">
-        <a href="${registroLink}" class="button">Ir a Vision OS →</a>
-      </p>
-
-      <p>O copia este link en tu navegador:</p>
-      <p style="word-break: break-all; background: #fff; padding: 10px; border-radius: 4px;">
-        ${registroLink}
-      </p>
-
-      <h3>¿Qué sigue?</h3>
-      <ul>
-        <li>Clickea el botón arriba o copia el link</li>
-        <li>Ingresa tu email</li>
-        <li>Confirma el código: <strong>${code}</strong></li>
-        <li>¡Listo! Tienes 7 días de prueba GRATIS</li>
-      </ul>
-
-      <p>¿Preguntas o dudas?<br>
-      📧 Contáctanos: support@visionos.app<br>
-      💬 WhatsApp: <a href="https://wa.me/541123456789">+54 9 11 2345 6789</a></p>
-    </div>
-
-    <div class="footer">
-      <p>© 2026 Vision OS. Todos los derechos reservados.</p>
-    </div>
-  </div>
-</body>
-</html>
-        `,
-      }),
+      body: JSON.stringify(payload),
     })
 
+    console.log('Resend response status:', response.status)
+    const responseText = await response.text()
+    console.log('Resend response body:', responseText)
+
     if (!response.ok) {
-      const errorData = await response.json()
-      console.error('Resend Error:', errorData)
-      return NextResponse.json({
-        error: `Error enviando email: ${JSON.stringify(errorData)}`
-      }, { status: 500 })
+      try {
+        const errorData = JSON.parse(responseText)
+        console.error('Resend error details:', errorData)
+        return NextResponse.json({
+          error: `Resend error (${response.status}): ${JSON.stringify(errorData)}`
+        }, { status: 500 })
+      } catch {
+        return NextResponse.json({
+          error: `Resend error (${response.status}): ${responseText}`
+        }, { status: 500 })
+      }
     }
 
-    return NextResponse.json({ success: true, message: 'Email enviado correctamente' })
+    console.log('=== EMAIL SENT SUCCESSFULLY ===')
+    return NextResponse.json({
+      success: true,
+      message: 'Email enviado correctamente',
+      data: responseText
+    })
   } catch (error) {
     console.error('API Error:', error)
     return NextResponse.json({
-      error: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      error: `Error: ${error instanceof Error ? error.message : String(error)}`
     }, { status: 500 })
   }
 }
