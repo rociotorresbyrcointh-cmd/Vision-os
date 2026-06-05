@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
+import { useEffect, useState } from 'react'
 import { Megaphone, Receipt, BarChart3, Users, Calendar, Settings, ArrowRight, Lock } from 'lucide-react'
 import { SECTOR_COLORS } from '@/lib/constants'
+import { PaywallModal } from '@/components/PaywallModal'
 
 const ACCENT = '#2563FF'
 
@@ -16,7 +18,20 @@ const stats = [
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const [daysLeft, setDaysLeft] = useState<number | null>(null)
   const sectorColor = SECTOR_COLORS[user?.sector || ''] || ACCENT
+
+  useEffect(() => {
+    if (!user) return
+    const checkAccess = async () => {
+      const res = await fetch(`/api/check-access?userId=${user.id}`)
+      const data = await res.json()
+      if (data.daysLeft !== undefined) {
+        setDaysLeft(data.daysLeft)
+      }
+    }
+    checkAccess()
+  }, [user])
 
   const modules = [
     { href: '/dashboard/marketing',    label: 'MARKETING',      title: 'Marketing & Redes Sociales', desc: 'Creador de anuncios con IA, previsualización y 8+ redes sociales.', Icon: Megaphone,  color: '#2563FF',  available: true },
@@ -101,6 +116,10 @@ export default function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {daysLeft !== null && daysLeft <= 7 && (
+        <PaywallModal daysLeft={daysLeft} onClose={() => setDaysLeft(null)} />
+      )}
     </div>
   )
 }
