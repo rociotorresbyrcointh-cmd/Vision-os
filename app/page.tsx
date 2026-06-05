@@ -179,6 +179,7 @@ export default function LandingPage() {
   const [formData, setFormData] = useState({ email: '', empresa: '', rubro: '', turnos: '' })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [code, setCode] = useState('')
 
   return (
     <div style={{ background: '#07070F', minHeight: '100vh', color: 'white', fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' }}>
@@ -539,13 +540,9 @@ export default function LandingPage() {
                       body: JSON.stringify(formData)
                     })
                     const data = await res.json()
-                    if (res.ok) {
-                      setMessage('¡Perfecto! Tu código de acceso se envió por email. 🎉')
-                      setTimeout(() => {
-                        setShowContactForm(false)
-                        setFormData({ email: '', empresa: '', rubro: '', turnos: '' })
-                        setMessage('')
-                      }, 2000)
+                    if (res.ok && data.code) {
+                      setCode(data.code)
+                      setMessage(`✅ ¡Perfecto! Tu código es: ${data.code}`)
                     } else {
                       setMessage(data.error || 'Error enviando solicitud')
                     }
