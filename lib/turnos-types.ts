@@ -16,6 +16,7 @@ export interface Service {
   durationMinutes: number
   price: number
   description?: string
+  complexity?: number // 1-4: cuántos "slots" ocupa (solo si está habilitado en config)
 }
 
 export interface Appointment {
@@ -39,6 +40,8 @@ export interface TurnosConfig {
   services: Service[]
   appointments: Appointment[]
   blockedTimes: BlockedTime[] // vacaciones, almuerzo, etc
+  enableComplexity?: boolean // mostrar sistema de complejidad/slots
+  maxSlotsPerHour?: number // máximo slots por hora (default: 4)
 }
 
 export interface BlockedTime {
