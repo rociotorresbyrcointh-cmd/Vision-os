@@ -177,6 +177,8 @@ function AppMockup() {
 export default function LandingPage() {
   const [showContactForm, setShowContactForm] = useState(false)
   const [formData, setFormData] = useState({ email: '', empresa: '', rubro: '', turnos: '' })
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
   return (
     <div style={{ background: '#07070F', minHeight: '100vh', color: 'white', fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' }}>
@@ -516,11 +518,47 @@ export default function LandingPage() {
               <input type="text" placeholder="Ej: 50, 100..." value={formData.turnos} onChange={e => setFormData({...formData, turnos: e.target.value})} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 13, outline: 'none', fontFamily: "'Inter', sans-serif" }} />
             </div>
 
+            {message && (
+              <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, color: '#10b981' }}>
+                {message}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => { setShowContactForm(false); alert('Gracias por tu interés. Te contactaremos pronto.'); }} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
-                Enviar solicitud
+              <button
+                onClick={async () => {
+                  if (!formData.email || !formData.empresa) {
+                    setMessage('Completa email y empresa')
+                    return
+                  }
+                  setLoading(true)
+                  try {
+                    const res = await fetch('/api/contact-form', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(formData)
+                    })
+                    const data = await res.json()
+                    if (res.ok) {
+                      setMessage('¡Perfecto! Tu código de acceso se envió por email. 🎉')
+                      setTimeout(() => {
+                        setShowContactForm(false)
+                        setFormData({ email: '', empresa: '', rubro: '', turnos: '' })
+                        setMessage('')
+                      }, 2000)
+                    } else {
+                      setMessage(data.error || 'Error enviando solicitud')
+                    }
+                  } catch (e) {
+                    setMessage('Error: intenta de nuevo')
+                  }
+                  setLoading(false)
+                }}
+                disabled={loading}
+                style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', fontSize: 14, opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'Enviando...' : 'Enviar solicitud'}
               </button>
-              <button onClick={() => setShowContactForm(false)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+              <button onClick={() => { setShowContactForm(false); setMessage(''); }} style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                 Cancelar
               </button>
             </div>
