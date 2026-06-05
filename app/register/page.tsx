@@ -1,33 +1,43 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { VisionLogoWhite } from '@/components/VisionLogo'
 import { SectorSelect } from '@/components/SectorSelect'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [company,  setCompany]  = useState('')
   const [sector,   setSector]   = useState('')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
+  const [invitationCode, setInvitationCode] = useState('')
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
   const { register } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const code = searchParams.get('code')
+    if (code) {
+      setInvitationCode(code)
+    }
+  }, [searchParams])
   const cardRef = useRef<HTMLDivElement>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!sector) { setError('Seleccioná el rubro de tu negocio'); return }
+    if (invitationCode && !company) { setError('Completa el nombre de tu empresa'); return }
+    if (invitationCode && !sector) { setError('Seleccioná el rubro de tu negocio'); return }
     setLoading(true)
     setError('')
-    const ok = await register(email, password, company, sector)
+    const ok = await register(email, password, company || email.split('@')[0], sector || 'Otro')
     if (ok) {
       router.push('/dashboard')
     } else {
-      setError('Ya existe una cuenta con ese email')
+      setError('Error registrando. Intenta con otro email.')
       setLoading(false)
     }
   }
@@ -149,5 +159,13 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div style={{ background: '#07070F', minHeight: '100vh' }} />}>
+      <RegisterForm />
+    </Suspense>
   )
 }

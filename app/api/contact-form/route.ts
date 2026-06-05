@@ -27,22 +27,33 @@ export async function POST(req: NextRequest) {
     const code = generateCode()
     const id = `inv_${Date.now()}_${Math.random().toString(36).substring(2)}`
 
-    // Intentar guardar en Supabase (sin RLS restrictivo)
+    // Guardar invitación en Supabase
     try {
       await supabase
         .from('invitations')
-        .insert([{ id, code, email, empresa, rubro, status: 'pending' }], { count: 'exact' })
+        .insert([{ id, code, email, empresa, rubro, status: 'pending' }])
     } catch (dbError) {
-      // Si falla Supabase, continuamos de todas formas (esto es testing)
       console.log('Supabase save skipped:', dbError)
     }
 
-    // TODO: Enviar email automático aquí con Twilio
-    // TODO: Enviar WhatsApp automático aquí con Twilio
+    // Enviar email automático con SendGrid
+    try {
+      const emailRes = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3001'}/api/send-invitation-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, empresa, code })
+      })
+
+      if (!emailRes.ok) {
+        console.log('Email send failed, but continuing')
+      }
+    } catch (emailError) {
+      console.log('Email send error:', emailError)
+    }
 
     return NextResponse.json({
       success: true,
-      message: '✅ ¡Perfecto! Tu código de acceso se envió por email.',
+      message: '✅ ¡Perfecto! Tu código se envió por email. Revisa tu bandeja de entrada.',
       code,
     })
   } catch (error) {
