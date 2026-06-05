@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
             subject: `🎉 Tu acceso a Vision OS está listo - Código: ${code}`,
           },
         ],
-        from: { email: 'noreply@visionos.app', name: 'Vision OS' },
+        from: { email: 'braaairc@gmail.com', name: 'Vision OS' },
         content: [
           {
             type: 'text/html',
@@ -94,9 +94,18 @@ export async function POST(req: NextRequest) {
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      console.error('SendGrid Error:', error)
-      return NextResponse.json({ error: 'Error enviando email' }, { status: 500 })
+      const errorText = await response.text()
+      console.error('SendGrid Error Status:', response.status)
+      console.error('SendGrid Error Body:', errorText)
+
+      // 401 = API key inválido o no autorizado
+      if (response.status === 401) {
+        return NextResponse.json({ error: 'API key inválido o email no verificado' }, { status: 401 })
+      }
+
+      return NextResponse.json({
+        error: `Error enviando email (${response.status}): ${errorText}`
+      }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, message: 'Email enviado correctamente' })
