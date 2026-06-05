@@ -519,26 +519,31 @@ export default function LandingPage() {
               <input type="text" placeholder="Ej: 50, 100..." value={formData.turnos} onChange={e => setFormData({...formData, turnos: e.target.value})} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', color: 'white', fontSize: 13, outline: 'none', fontFamily: "'Inter', sans-serif" }} />
             </div>
 
-            {message && code && (
-              <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
-                <p style={{ fontSize: 12, color: '#10b981', margin: '0 0 12px 0', fontWeight: 700 }}>✅ ¡LISTO! Tu código de acceso:</p>
-                <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(16,185,129,0.5)', borderRadius: 8, padding: 12, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <code style={{ fontSize: 18, fontWeight: 700, color: '#10b981', letterSpacing: '2px', fontFamily: 'monospace' }}>{code}</code>
+            {code && (
+              <div style={{ background: 'rgba(16,185,129,0.12)', border: '2px solid rgba(16,185,129,0.5)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: '#10b981', margin: '0 0 14px 0', fontWeight: 700 }}>✅ ¡TU CÓDIGO ESTÁ LISTO!</p>
+
+                <div style={{ background: 'rgba(0,0,0,0.6)', border: '2px solid rgba(16,185,129,0.6)', borderRadius: 10, padding: 16, marginBottom: 14, textAlign: 'center' }}>
+                  <code style={{ fontSize: 28, fontWeight: 900, color: '#10b981', letterSpacing: '3px', fontFamily: 'monospace', display: 'block', marginBottom: 12 }}>{code}</code>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(code); alert('¡Código copiado!') }}
-                    style={{ padding: '6px 12px', background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.4)', borderRadius: 6, color: '#10b981', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    onClick={() => { navigator.clipboard.writeText(code); alert('✅ ¡Código copiado al portapapeles!') }}
+                    style={{ padding: '10px 20px', background: 'rgba(16,185,129,0.3)', border: '1px solid rgba(16,185,129,0.6)', borderRadius: 8, color: '#10b981', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%' }}
                   >
-                    Copiar
+                    📋 COPIAR CÓDIGO
                   </button>
                 </div>
-                <p style={{ fontSize: 11, color: 'rgba(16,185,129,0.7)', margin: 0 }}>
-                  Ahora ve a <strong style={{ color: '#10b981' }}>vision-os-delta.vercel.app/register?code={code}</strong> y copia este código para registrarte
-                </p>
+
+                <div style={{ background: 'rgba(255,193,7,0.08)', border: '1px solid rgba(255,193,7,0.3)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.6 }}>
+                    📧 <strong>Te enviaremos un email</strong> con tu link de registro. Revisa tu bandeja de entrada (e inbox de spam por si acaso).
+                    <br />Si no llega en 2 minutos, puedes usar tu código en: <strong>vision-os-delta.vercel.app/register</strong>
+                  </p>
+                </div>
               </div>
             )}
 
             {message && !code && (
-              <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, color: '#10b981' }}>
+              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, color: '#f87171' }}>
                 {message}
               </div>
             )}
