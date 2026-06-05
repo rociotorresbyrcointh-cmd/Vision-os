@@ -37,23 +37,29 @@ export async function POST(req: NextRequest) {
     }
 
     // Enviar email automático con SendGrid
+    let emailError = null
     try {
-      const emailRes = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3001'}/api/send-invitation-email`, {
+      const emailRes = await fetch(`https://vision-os-delta.vercel.app/api/send-invitation-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, empresa, code })
       })
 
       if (!emailRes.ok) {
-        console.log('Email send failed, but continuing')
+        const errorText = await emailRes.text()
+        emailError = `SendGrid error (${emailRes.status}): ${errorText}`
+        console.error('Email send failed:', emailError)
       }
-    } catch (emailError) {
-      console.log('Email send error:', emailError)
+    } catch (err) {
+      emailError = `Email API error: ${err instanceof Error ? err.message : String(err)}`
+      console.error(emailError)
     }
 
     return NextResponse.json({
       success: true,
-      message: '✅ ¡Perfecto! Tu código se envió por email. Revisa tu bandeja de entrada.',
+      message: emailError
+        ? `⚠️ Código generado pero email falló: ${emailError}. Usa el código: ${code}`
+        : '✅ ¡Perfecto! Tu código se envió por email. Revisa tu bandeja de entrada.',
       code,
     })
   } catch (error) {
