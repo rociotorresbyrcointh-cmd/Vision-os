@@ -1302,6 +1302,14 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
             </div>
 
             <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Servicio</label>
+              <select value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                <option value="">Seleccionar servicio</option>
+                {config.services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cliente (Nombre)</label>
               <input type="text" placeholder="Ej: Juan Pérez" value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
             </div>
