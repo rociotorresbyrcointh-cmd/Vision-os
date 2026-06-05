@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY!
-const SENDGRID_URL = 'https://api.sendgrid.com/v3/mail/send'
+const RESEND_API_KEY = process.env.RESEND_API_KEY!
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +12,17 @@ export async function POST(req: NextRequest) {
 
     const registroLink = `https://vision-os-delta.vercel.app/register?code=${code}`
 
-    const emailContent = `
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Vision OS <onboarding@resend.dev>',
+        to: email,
+        subject: `🎉 Tu acceso a Vision OS está listo - Código: ${code}`,
+        html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -68,49 +77,23 @@ export async function POST(req: NextRequest) {
   </div>
 </body>
 </html>
-    `.trim()
-
-    const response = await fetch(SENDGRID_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [
-          {
-            to: [{ email }],
-            subject: `🎉 Tu acceso a Vision OS está listo - Código: ${code}`,
-          },
-        ],
-        from: { email: 'braaairc@gmail.com', name: 'Vision OS' },
-        content: [
-          {
-            type: 'text/html',
-            value: emailContent,
-          },
-        ],
+        `,
       }),
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('SendGrid Error Status:', response.status)
-      console.error('SendGrid Error Body:', errorText)
-
-      // 401 = API key inválido o no autorizado
-      if (response.status === 401) {
-        return NextResponse.json({ error: 'API key inválido o email no verificado' }, { status: 401 })
-      }
-
+      const errorData = await response.json()
+      console.error('Resend Error:', errorData)
       return NextResponse.json({
-        error: `Error enviando email (${response.status}): ${errorText}`
+        error: `Error enviando email: ${JSON.stringify(errorData)}`
       }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, message: 'Email enviado correctamente' })
   } catch (error) {
     console.error('API Error:', error)
-    return NextResponse.json({ error: 'Error procesando solicitud' }, { status: 500 })
+    return NextResponse.json({
+      error: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }, { status: 500 })
   }
 }
