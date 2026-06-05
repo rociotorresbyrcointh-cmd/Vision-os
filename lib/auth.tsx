@@ -66,21 +66,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (email: string, password: string, company: string, sector: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password })
-      if (error || !data.user) return false
-
-      await supabase.from('business_config').insert({
-        id: `config_${Date.now()}`,
-        user_id: data.user.id,
-        business_name: company,
-        sector: sector
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, company, sector })
       })
 
+      if (!response.ok) {
+        console.error('Registration failed:', response.statusText)
+        return false
+      }
+
+      const data = await response.json()
       const userData: User = { id: data.user.id, email: email, company: company, sector: sector }
       setUser(userData)
       localStorage.setItem('bos_user', JSON.stringify(userData))
       return true
-    } catch {
+    } catch (error) {
+      console.error('Register error:', error)
       return false
     }
   }
