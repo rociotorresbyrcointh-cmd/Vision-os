@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       console.warn('⚠️ Auth warning (cuenta creada anyway):', authError.message)
     }
 
-    console.log('✅ Usuario creado en Auth:', authData.user.id)
+    console.log('✅ Usuario creado en Auth:', userCreated)
 
     // Guardar configuración del negocio
     const { error: configError } = await supabase
