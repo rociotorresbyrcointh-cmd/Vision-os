@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
       password,
     })
 
-    if (authError) {
+    // Verificar si el usuario fue creado, incluso si hay un error
+    const userCreated = authData.user?.id
+
+    if (authError && !userCreated) {
       console.error('❌ Auth error completo:', JSON.stringify(authError, null, 2))
       return NextResponse.json(
         { error: authError.message || 'Error en autenticación', details: authError.code },
@@ -32,12 +35,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!authData.user) {
+    if (!userCreated) {
       console.error('❌ No user returned from signup')
       return NextResponse.json(
         { error: 'Usuario no creado' },
         { status: 400 }
       )
+    }
+
+    if (authError) {
+      console.warn('⚠️ Auth warning (cuenta creada anyway):', authError.message)
     }
 
     console.log('✅ Usuario creado en Auth:', authData.user.id)
