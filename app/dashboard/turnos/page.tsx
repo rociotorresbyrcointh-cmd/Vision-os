@@ -30,7 +30,7 @@ export default function TurnosPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('calendar')
   const [monthView, setMonthView] = useState(new Date())
-  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [] })
+  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [], enableComplexity: false, maxSlotsPerHour: 4 })
   const [generalConfig, setGeneralConfig] = useState<any>({})
   const [weekStart, setWeekStart] = useState(new Date())
 
@@ -109,7 +109,7 @@ export default function TurnosPage() {
 
   const startEditSvc = (svc: Service) => {
     setEditingSvc(svc)
-    setSvcForm({ name: svc.name, durationMinutes: svc.durationMinutes, price: svc.price, description: svc.description || '' })
+    setSvcForm({ name: svc.name, durationMinutes: svc.durationMinutes, price: svc.price, description: svc.description || '', complexity: svc.complexity || 1 })
   }
 
   const canAddProf = profForm.name.trim() && profForm.specialty.trim()
@@ -433,7 +433,7 @@ export default function TurnosPage() {
                 <button
                   onClick={() => {
                     setEditingSvc(null)
-                    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
+                    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
                   }}
                   style={{
                     background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)',
