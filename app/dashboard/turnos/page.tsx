@@ -26,6 +26,74 @@ const blur = (e: React.FocusEvent<any>) => e.target.style.borderColor = 'rgba(25
 
 type Tab = 'professionals' | 'services' | 'bloqueos' | 'calendar' | 'calendar-full'
 
+// Lógica compartida de generación de appointments (recurrentes y únicos)
+function generateAppointments(
+  form: any,
+  config: TurnosConfig,
+  service: Service
+): Appointment[] {
+  const appointments: Appointment[] = []
+
+  if (form.recurring) {
+    const startDate = new Date(form.date)
+    const recurringDays = form.recurring.split(',').map(Number)
+    const sessionCount = Number(form.sessionCount) || 1
+
+    let currentDate = new Date(startDate)
+    let sessionsCreated = 0
+
+    while (sessionsCreated < sessionCount) {
+      if (recurringDays.includes(currentDate.getDay())) {
+        const dateKey = getDateKey(currentDate)
+        const startDateTime = `${dateKey}T${form.startTime}`
+        const apptStartDate = new Date(startDateTime)
+        const apptEndDate = new Date(apptStartDate.getTime() + service.durationMinutes * 60 * 1000)
+
+        appointments.push({
+          id: `${Date.now()}_${sessionsCreated}_${Math.random().toString(36).substring(2)}`,
+          clientName: form.clientName,
+          clientWhatsApp: form.clientWhatsApp,
+          clientEmail: form.clientEmail,
+          professionalId: form.profId,
+          serviceId: form.serviceId,
+          startTime: startDateTime,
+          endTime: apptEndDate.toISOString(),
+          status: form.status,
+          notes: form.notes,
+          complexity: form.complexity ? Number(form.complexity) : 1,
+          createdAt: new Date().toISOString(),
+          source: 'admin',
+        })
+        sessionsCreated++
+      }
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+  } else {
+    const startDateTime = `${form.date}T${form.startTime}`
+    const startDate = new Date(startDateTime)
+    const endDate = new Date(startDate.getTime() + service.durationMinutes * 60 * 1000)
+    const endDateTime = endDate.toISOString()
+
+    appointments.push({
+      id: `${Date.now()}_${Math.random().toString(36).substring(2)}`,
+      clientName: form.clientName,
+      clientWhatsApp: form.clientWhatsApp,
+      clientEmail: form.clientEmail,
+      professionalId: form.profId,
+      serviceId: form.serviceId,
+      startTime: startDateTime,
+      endTime: endDateTime,
+      status: form.status,
+      notes: form.notes,
+      complexity: form.complexity ? Number(form.complexity) : 1,
+      createdAt: new Date().toISOString(),
+      source: 'admin',
+    })
+  }
+
+  return appointments
+}
+
 export default function TurnosPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('calendar')
@@ -692,66 +760,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
       return
     }
 
-    const appointments: Appointment[] = []
-
-    if (form.recurring) {
-      // Generar turnos recurrentes
-      const startDate = new Date(form.date)
-      const recurringDays = form.recurring.split(',').map(Number)
-      const sessionCount = Number(form.sessionCount) || 1
-
-      let currentDate = new Date(startDate)
-      let sessionsCreated = 0
-
-      while (sessionsCreated < sessionCount) {
-        if (recurringDays.includes(currentDate.getDay())) {
-          const dateKey = getDateKey(currentDate)
-          const startDateTime = `${dateKey}T${form.startTime}`
-          const apptStartDate = new Date(startDateTime)
-          const apptEndDate = new Date(apptStartDate.getTime() + service.durationMinutes * 60 * 1000)
-
-          appointments.push({
-            id: `${Date.now()}_${sessionsCreated}_${Math.random().toString(36).substring(2)}`,
-            clientName: form.clientName,
-            clientWhatsApp: form.clientWhatsApp,
-            clientEmail: form.clientEmail,
-            professionalId: form.profId,
-            serviceId: form.serviceId,
-            startTime: startDateTime,
-            endTime: apptEndDate.toISOString(),
-            status: form.status,
-            notes: form.notes,
-            complexity: form.complexity ? Number(form.complexity) : 1,
-            createdAt: new Date().toISOString(),
-            source: 'admin',
-          })
-          sessionsCreated++
-        }
-        currentDate.setDate(currentDate.getDate() + 1)
-      }
-    } else {
-      // Turno único
-      const startDateTime = `${form.date}T${form.startTime}`
-      const startDate = new Date(startDateTime)
-      const endDate = new Date(startDate.getTime() + service.durationMinutes * 60 * 1000)
-      const endDateTime = endDate.toISOString()
-
-      appointments.push({
-        id: `${Date.now()}_${Math.random().toString(36).substring(2)}`,
-        clientName: form.clientName,
-        clientWhatsApp: form.clientWhatsApp,
-        clientEmail: form.clientEmail,
-        professionalId: form.profId,
-        serviceId: form.serviceId,
-        startTime: startDateTime,
-        endTime: endDateTime,
-        status: form.status,
-        notes: form.notes,
-        complexity: form.complexity ? Number(form.complexity) : 1,
-        createdAt: new Date().toISOString(),
-        source: 'admin',
-      })
-    }
+    const appointments = generateAppointments(form, config, service)
 
     if (editingAppt) {
       const updated = config.appointments.map(a => a.id === editingAppt.id
@@ -1206,7 +1215,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1 })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
 
   const year = monthView.getFullYear()
   const month = monthView.getMonth()
@@ -1227,16 +1236,67 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1 })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
     setEditingAppt(null)
     setOpenModal(true)
   }
 
+  const getUsedSlotsMonth = (profId: string, dateKey: string, hour: string): number => {
+    if (!config.enableComplexity) return 0
+    return config.appointments
+      .filter(a => a.professionalId === profId && a.startTime.startsWith(dateKey) && a.startTime.substring(11, 16) === hour)
+      .reduce((total, appt) => total + (appt.complexity || 1), 0)
+  }
+
+  const canAddApptWithComplexityMonth = (profId: string, dateKey: string, hour: string, complexity: number): boolean => {
+    if (!config.enableComplexity) return true
+    const usedSlots = getUsedSlotsMonth(profId, dateKey, hour)
+    const maxSlots = config.maxSlotsPerHour || 4
+    return (usedSlots + complexity) <= maxSlots
+  }
+
   const saveTurno = () => {
     if (!form.clientName || !form.profId || !form.date || !form.startTime) return
-    const id = `${Date.now()}_${Math.random().toString(36).substring(2)}`
-    const appt: Appointment = { id, professionalId: form.profId, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, endTime: `${form.date}T${form.endTime}`, status: form.status, notes: form.notes, complexity: form.complexity ? Number(form.complexity) : 1, source: 'admin' as const, createdAt: new Date().toISOString() }
-    saveConfig({ ...config, appointments: [...config.appointments, appt] })
+
+    const service = config.services.find(s => s.id === form.serviceId)
+    if (!service) return
+
+    // Validar slots si está habilitada la complejidad
+    if (!canAddApptWithComplexityMonth(form.profId, form.date, form.startTime, form.complexity || 1)) {
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + (config.maxSlotsPerHour || 4) + ' slots')
+      return
+    }
+
+    const appointments = generateAppointments(form, config, service)
+
+    saveConfig({ ...config, appointments: [...config.appointments, ...appointments] })
+
+    // Enviar mensaje de WhatsApp de confirmación
+    if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
+      const professional = config.professionals.find(p => p.id === form.profId)
+      const serviceName = service?.name || ''
+      const professionalName = professional?.name || ''
+
+      const message = `¡Tu turno está confirmado! 📅
+
+Servicio: ${serviceName}
+Profesional: ${professionalName}
+Fecha: ${new Date(form.date).toLocaleDateString('es-AR')}
+Hora: ${form.startTime}
+
+Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
+
+      sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
+        .then(result => {
+          if (result.success) {
+            console.log('✓ WhatsApp enviado a', form.clientWhatsApp)
+          } else {
+            console.warn('✗ Error enviando WhatsApp:', result.error)
+          }
+        })
+        .catch(err => console.error('Error enviando WhatsApp:', err))
+    }
+
     setOpenModal(false)
   }
 
@@ -1398,6 +1458,52 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
                   <option value={3}>3 slots</option>
                   <option value={4}>4 slots (máx)</option>
                 </select>
+              </div>
+            )}
+
+            {/* Recurrencia */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Repetir turno</label>
+              <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                <option value="">No repetir (una sola vez)</option>
+                <optgroup label="Selecciona los días que se repite:">
+                  <option value="1">Todos los lunes</option>
+                  <option value="2">Todos los martes</option>
+                  <option value="3">Todos los miércoles</option>
+                  <option value="4">Todos los jueves</option>
+                  <option value="5">Todos los viernes</option>
+                  <option value="1,3,5">Lunes, miércoles, viernes</option>
+                  <option value="2,4">Martes y jueves</option>
+                  <option value="1,2,3,4,5">Lunes a viernes</option>
+                  <option value="0,6">Fines de semana</option>
+                  <option value="1,2,3,4,5,0,6">Todos los días</option>
+                </optgroup>
+              </select>
+            </div>
+
+            {/* Cantidad de sesiones */}
+            {form.recurring && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>¿Cuántas sesiones?</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="52"
+                  value={form.sessionCount}
+                  onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
+                  style={inputStyle}
+                  onFocus={focus}
+                  onBlur={blur}
+                  placeholder="Ej: 10 para 10 sesiones en esos días"
+                />
+                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
+                  <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
+                    ✓ Se crearán {form.sessionCount} sesiones
+                  </p>
+                  <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
+                    Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+                  </p>
+                </div>
               </div>
             )}
 
