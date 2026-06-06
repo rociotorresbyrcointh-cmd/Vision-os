@@ -1190,7 +1190,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '' })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1 })
 
   const year = monthView.getFullYear()
   const month = monthView.getMonth()
@@ -1211,7 +1211,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '' })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1 })
     setEditingAppt(null)
     setOpenModal(true)
   }
@@ -1219,7 +1219,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const saveTurno = () => {
     if (!form.clientName || !form.profId || !form.date || !form.startTime) return
     const id = `${Date.now()}_${Math.random().toString(36).substring(2)}`
-    const appt: Appointment = { id, professionalId: form.profId, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, endTime: `${form.date}T${form.endTime}`, status: form.status, notes: form.notes, source: 'admin' as const, createdAt: new Date().toISOString() }
+    const appt: Appointment = { id, professionalId: form.profId, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, endTime: `${form.date}T${form.endTime}`, status: form.status, notes: form.notes, complexity: form.complexity ? Number(form.complexity) : 1, source: 'admin' as const, createdAt: new Date().toISOString() }
     saveConfig({ ...config, appointments: [...config.appointments, appt] })
     setOpenModal(false)
   }
