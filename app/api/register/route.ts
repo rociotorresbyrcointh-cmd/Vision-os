@@ -19,9 +19,14 @@ export async function POST(req: NextRequest) {
 
     // Crear usuario en Supabase Auth
     console.log('📝 Registrando:', email)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${appUrl}/auth/confirm`,
+        data: { company, sector }
+      }
     })
 
     // Verificar si el usuario fue creado, incluso si hay un error
