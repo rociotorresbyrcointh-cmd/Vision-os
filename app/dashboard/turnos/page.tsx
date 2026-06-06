@@ -680,11 +680,37 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     setModalOpen(true)
   }
 
+  // Validar slots disponibles para complejidad
+  const getUsedSlots = (profId: string, dateKey: string, hour: string): number => {
+    if (!config.enableComplexity) return 0
+    return config.appointments
+      .filter(a => a.professionalId === profId && a.startTime.startsWith(dateKey) && a.startTime.substring(11, 16) === hour)
+      .reduce((total, appt) => {
+        const svc = config.services.find(s => s.id === appt.serviceId)
+        return total + (svc?.complexity || 1)
+      }, 0)
+  }
+
+  const canAddApptWithComplexity = (profId: string, dateKey: string, hour: string, serviceId: string): boolean => {
+    if (!config.enableComplexity) return true
+    const service = config.services.find(s => s.id === serviceId)
+    if (!service) return true
+    const usedSlots = getUsedSlots(profId, dateKey, hour)
+    const maxSlots = config.maxSlotsPerHour || 4
+    return (usedSlots + (service.complexity || 1)) <= maxSlots
+  }
+
   const saveAppt = () => {
     if (!form.clientName.trim() || !form.serviceId || !form.profId || !form.date || !form.startTime) return
 
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
+
+    // Validar slots si está habilitada la complejidad
+    if (!canAddApptWithComplexity(form.profId, form.date, form.startTime, form.serviceId)) {
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + (config.maxSlotsPerHour || 4) + ' slots')
+      return
+    }
 
     const appointments: Appointment[] = []
 
