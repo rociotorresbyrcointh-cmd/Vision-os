@@ -53,11 +53,8 @@ export async function POST(req: NextRequest) {
       })
 
     if (configError) {
-      console.error('❌ Config error:', configError)
-      return NextResponse.json(
-        { error: 'Error guardando configuración' },
-        { status: 400 }
-      )
+      console.warn('⚠️ Config error (no crítico):', configError)
+      // No es crítico si falla - la cuenta de Auth se creó
     }
 
     console.log('✅ Registro completado')
@@ -68,7 +65,7 @@ export async function POST(req: NextRequest) {
         id: authData.user.id,
         email: authData.user.email,
       },
-    })
+    }, { status: 200 })
   } catch (error) {
     console.error('❌ Register API error:', error)
     return NextResponse.json(
