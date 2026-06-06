@@ -927,8 +927,17 @@ const MAX_CAPACITY_UNIFIED = 10
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'}
                             >
                               <div style={{ width: 5, height: 5, borderRadius: '50%', background: prof?.color || '#2563FF', flexShrink: 0 }} />
-                              <span style={{ color: 'white', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</span>
-                              <span style={{ color: `${prof?.color || '#2563FF'}cc`, fontSize: '7px' }}>({prof?.name})</span>
+                              <span style={{ color: 'white', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '9px' }}>
+                                {a.clientName}
+                              </span>
+                              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {config.services.find(s => s.id === a.serviceId)?.name || 'N/A'}
+                              </span>
+                              {config.enableComplexity && (
+                                <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>
+                                  C{a.complexity || 1}
+                                </span>
+                              )}
                             </div>)
                           })}
                         </div>
@@ -1163,18 +1172,15 @@ const MAX_CAPACITY_UNIFIED = 10
                             el.style.borderColor = c + '40';
                           }}
                         >
-                          <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0 }}>👤 {a.clientName}</p>
-                          <p style={{ color: `${prof?.color}99`, fontSize: 11, margin: '4px 0 0' }}>
-                            🛠️ {config.services.find(s => s.id === a.serviceId)?.name}
+                          <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0 }}>{a.clientName}</p>
+                          <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '3px 0 0' }}>
+                            {config.services.find(s => s.id === a.serviceId)?.name} • {a.startTime.substring(11, 16)}
                           </p>
                           {config.enableComplexity && (
-                            <p style={{ color: '#fbbf24', fontSize: 10, margin: '3px 0 0', fontWeight: 600 }}>
-                              ⚡ {a.complexity || 1} slot{(a.complexity || 1) !== 1 ? 's' : ''}
+                            <p style={{ color: '#fbbf24', fontSize: 10, margin: '2px 0 0', fontWeight: 600 }}>
+                              C{a.complexity || 1}
                             </p>
                           )}
-                          <p style={{ color: `${prof?.color}66`, fontSize: 10, margin: '3px 0 0' }}>
-                            {a.status}
-                          </p>
                         </div>
                       ))}
                     </div>
@@ -1326,7 +1332,11 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}30`; (e.currentTarget as HTMLElement).style.borderColor = `${prof?.color || '#2563FF'}80` }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}15`; (e.currentTarget as HTMLElement).style.borderColor = `${prof?.color || '#2563FF'}40` }}
                       >
-                        <strong>{a.clientName}</strong> ({a.startTime.substring(11, 16)}) {config.enableComplexity ? `⚡${a.complexity || 1}` : ''}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <strong style={{ fontSize: 8, lineHeight: 1 }}>{a.clientName}</strong>
+                          <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{a.startTime.substring(11, 16)}</span>
+                          {config.enableComplexity && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>C{a.complexity || 1}</span>}
+                        </div>
                       </div>
                     )
                   })}
