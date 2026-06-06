@@ -109,7 +109,7 @@ export default function TurnosPage() {
 
   const startEditSvc = (svc: Service) => {
     setEditingSvc(svc)
-    setSvcForm({ name: svc.name, durationMinutes: svc.durationMinutes, price: svc.price, description: svc.description || '', complexity: svc.complexity || 1 })
+    setSvcForm({ name: svc.name, durationMinutes: svc.durationMinutes, price: svc.price, description: svc.description || '' })
   }
 
   const canAddProf = profForm.name.trim() && profForm.specialty.trim()
@@ -421,7 +421,7 @@ export default function TurnosPage() {
                 <button
                   onClick={() => {
                     setEditingSvc(null)
-                    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
+                    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
                   }}
                   style={{
                     background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)',
@@ -669,18 +669,15 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     return config.appointments
       .filter(a => a.professionalId === profId && a.startTime.startsWith(dateKey) && a.startTime.substring(11, 16) === hour)
       .reduce((total, appt) => {
-        const svc = config.services.find(s => s.id === appt.serviceId)
-        return total + (svc?.complexity || 1)
+        return total + (appt.complexity || 1)
       }, 0)
   }
 
-  const canAddApptWithComplexity = (profId: string, dateKey: string, hour: string, serviceId: string): boolean => {
+  const canAddApptWithComplexity = (profId: string, dateKey: string, hour: string, complexity: number): boolean => {
     if (!config.enableComplexity) return true
-    const service = config.services.find(s => s.id === serviceId)
-    if (!service) return true
     const usedSlots = getUsedSlots(profId, dateKey, hour)
     const maxSlots = config.maxSlotsPerHour || 4
-    return (usedSlots + (service.complexity || 1)) <= maxSlots
+    return (usedSlots + complexity) <= maxSlots
   }
 
   const saveAppt = () => {
@@ -690,7 +687,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     if (!service) return
 
     // Validar slots si está habilitada la complejidad
-    if (!canAddApptWithComplexity(form.profId, form.date, form.startTime, form.serviceId)) {
+    if (!canAddApptWithComplexity(form.profId, form.date, form.startTime, form.complexity || 1)) {
       alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + (config.maxSlotsPerHour || 4) + ' slots')
       return
     }
@@ -794,7 +791,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
     console.log('Closing modal and resetting form')
     setModalOpen(false)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1 })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1 })
   }
 
   const deleteAppt = (id: string) => {

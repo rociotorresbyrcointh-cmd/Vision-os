@@ -1,0 +1,23 @@
+
+> business-os@0.1.0 build
+> next build
+
+▲ Next.js 16.2.7 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 16.3s
+  Running TypeScript ...
+Failed to type check.
+
+./app/dashboard/turnos/page.tsx:112:126
+Type error: Object literal may only specify known properties, and 'complexity' does not exist in type 'SetStateAction<{ name: string; durationMinutes: number; price: number; description: string; }>'.
+
+  [90m110 |[0m ...
+  [90m111 |[0m ...
+[31m[1m>[0m [90m112 |[0m ...price, description: svc.description || [32m''[0m, complexity: svc.complexity || [35m1[0m })
+  [90m    |[0m                                               [31m[1m^[0m
+  [90m113 |[0m ...
+  [90m114 |[0m ...
+  [90m115 |[0m ...
+Next.js build worker exited with code: 1 and signal: null
