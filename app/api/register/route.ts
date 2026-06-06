@@ -24,10 +24,18 @@ export async function POST(req: NextRequest) {
       password,
     })
 
-    if (authError || !authData.user) {
-      console.error('❌ Auth error:', authError?.message)
+    if (authError) {
+      console.error('❌ Auth error completo:', JSON.stringify(authError, null, 2))
       return NextResponse.json(
-        { error: authError?.message || 'Error en autenticación' },
+        { error: authError.message || 'Error en autenticación', details: authError.code },
+        { status: 400 }
+      )
+    }
+
+    if (!authData.user) {
+      console.error('❌ No user returned from signup')
+      return NextResponse.json(
+        { error: 'Usuario no creado' },
         { status: 400 }
       )
     }
