@@ -59,7 +59,7 @@ function RegisterForm() {
     if (ok) {
       router.push('/dashboard')
     } else {
-      setError('Error registrando. Intenta con otro email.')
+      setError('📧 Te hemos enviado un email de confirmación. Revisa tu bandeja de entrada y confirma tu cuenta.')
       setLoading(false)
     }
   }
