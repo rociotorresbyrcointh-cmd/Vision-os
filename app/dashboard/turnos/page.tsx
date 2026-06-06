@@ -303,6 +303,23 @@ export default function TurnosPage() {
         </button>
 
         <button
+          onClick={() => saveConfig({ ...config, enableWeeklyCalendar: !config.enableWeeklyCalendar })}
+          style={{
+            background: config.enableWeeklyCalendar ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${config.enableWeeklyCalendar ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+            color: config.enableWeeklyCalendar ? '#86efac' : 'rgba(255,255,255,0.5)',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {config.enableWeeklyCalendar ? '✓ Calendario Semanal' : '○ Calendario Semanal'}
+        </button>
+
+        <button
           onClick={() => saveConfig({ ...config, enableProfessionalCalendars: !config.enableProfessionalCalendars })}
           style={{
             background: config.enableProfessionalCalendars ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
@@ -339,10 +356,10 @@ export default function TurnosPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' }}>
-        {(['professionals', 'services', 'bloqueos', 'calendar', 'calendar-full'] as const).map(t => (
+        {(['professionals', 'services', 'bloqueos', config.enableWeeklyCalendar ? 'calendar' : null, 'calendar-full'] as const).filter(Boolean).map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => setTab(t as Tab)}
             style={{
               padding: '14px 20px', fontSize: 13, fontWeight: 600, color: tab === t ? 'white' : 'rgba(255,255,255,0.4)',
               background: 'none', border: 'none', cursor: 'pointer', borderBottom: tab === t ? '2px solid #fb923c' : 'none',
@@ -354,8 +371,8 @@ export default function TurnosPage() {
             {t === 'professionals' && '👨‍⚕️ Profesionales'}
             {t === 'services' && '🛠️ Servicios'}
             {t === 'bloqueos' && '🚫 Bloqueos'}
-            {t === 'calendar' && '📅 Calendario'}
-            {t === 'calendar-full' && '📆 Calendario Completo'}
+            {t === 'calendar' && '📅 Calendario Semanal'}
+            {t === 'calendar-full' && '📆 Calendario Mensual'}
           </button>
         ))}
 
@@ -972,7 +989,7 @@ const MAX_CAPACITY_UNIFIED = 10
             return (
               <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 10, overflowX: 'auto', position: 'relative' }}>
                 {/* Sticky Header */}
-                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'inherit', gap: 10, position: 'sticky', top: 0, background: 'linear-gradient(180deg,#0a0a18,#15101e)', zIndex: 10, paddingBottom: 10 }}>
+                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'inherit', gap: 10, position: 'sticky', top: 0, background: 'linear-gradient(180deg,#0a0a18,#15101e)', zIndex: 10, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                   <div />
                   {weekDates.map((d, i) => (
                     <div key={i} style={{ textAlign: 'center', marginBottom: 8 }}>
@@ -1091,6 +1108,20 @@ const MAX_CAPACITY_UNIFIED = 10
                   <input type="email" placeholder="cliente@example.com" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
                 </div>
               </div>
+
+              {config.enableInsuranceInfo && (
+                <>
+                  <div>
+                    <label style={labelStyle}>Seguro / Cobertura</label>
+                    <input type="text" placeholder="Ej: OSDE, Swiss Medical, Medicare..." value={form.healthInsurance || ''} onChange={e => setForm({ ...form, healthInsurance: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Número de Afiliado</label>
+                    <input type="text" placeholder="Ej: 12345678" value={form.membershipNumber || ''} onChange={e => setForm({ ...form, membershipNumber: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                  </div>
+                </>
+              )}
 
               {/* Servicio */}
               <div>

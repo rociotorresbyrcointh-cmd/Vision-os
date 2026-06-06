@@ -54,6 +54,7 @@ export interface TurnosConfig {
   blockedTimes: BlockedTime[] // vacaciones, almuerzo, etc
   patients?: PatientProfile[] // perfiles de pacientes para auto-relleno
   enableComplexity?: boolean // mostrar sistema de complejidad/slots
+  enableWeeklyCalendar?: boolean // mostrar calendario semanal
   enableProfessionalCalendars?: boolean // mostrar calendario por profesional
   enableInsuranceInfo?: boolean // mostrar campos de seguro/cobertura
 }
