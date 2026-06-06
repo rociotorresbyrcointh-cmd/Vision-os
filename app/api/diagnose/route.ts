@@ -5,11 +5,13 @@ export async function GET() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  const diagnosis = {
+  const diagnosis: any = {
     supabaseUrl: supabaseUrl ? '✓ Present' : '✗ Missing',
     supabaseKey: supabaseKey ? '✓ Present' : '✗ Missing',
     supabaseUrlValue: supabaseUrl,
     timestamp: new Date().toISOString(),
+    supabaseConnection: '⏳ Checking...',
+    supabaseError: 'None',
   }
 
   // Intentar conectar a Supabase
