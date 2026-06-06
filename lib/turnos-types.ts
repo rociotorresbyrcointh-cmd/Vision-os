@@ -42,7 +42,7 @@ export interface TurnosConfig {
   appointments: Appointment[]
   blockedTimes: BlockedTime[] // vacaciones, almuerzo, etc
   enableComplexity?: boolean // mostrar sistema de complejidad/slots
-  maxSlotsPerHour?: number // máximo slots por hora (default: 4)
+  enableProfessionalCalendars?: boolean // mostrar calendario por profesional
 }
 
 export interface BlockedTime {

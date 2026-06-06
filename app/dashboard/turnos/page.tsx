@@ -24,7 +24,7 @@ const labelStyle: React.CSSProperties = {
 const focus = (e: React.FocusEvent<any>) => e.target.style.borderColor = 'rgba(37,99,255,0.5)'
 const blur = (e: React.FocusEvent<any>) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'
 
-type Tab = 'professionals' | 'services' | 'bloqueos' | 'calendar' | 'calendar-full'
+type Tab = 'professionals' | 'services' | 'bloqueos' | 'calendar' | 'calendar-full' | `prof_${string}`
 
 // Lógica compartida de generación de appointments (recurrentes y únicos)
 function generateAppointments(
@@ -301,10 +301,27 @@ export default function TurnosPage() {
         >
           {config.enableComplexity ? '✓ Activado' : '○ Desactivado'}
         </button>
+
+        <button
+          onClick={() => saveConfig({ ...config, enableProfessionalCalendars: !config.enableProfessionalCalendars })}
+          style={{
+            background: config.enableProfessionalCalendars ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${config.enableProfessionalCalendars ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+            color: config.enableProfessionalCalendars ? '#86efac' : 'rgba(255,255,255,0.5)',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {config.enableProfessionalCalendars ? '✓ Calendarios por Profesional' : '○ Calendarios por Profesional'}
+        </button>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' }}>
         {(['professionals', 'services', 'bloqueos', 'calendar', 'calendar-full'] as const).map(t => (
           <button
             key={t}
@@ -312,7 +329,7 @@ export default function TurnosPage() {
             style={{
               padding: '14px 20px', fontSize: 13, fontWeight: 600, color: tab === t ? 'white' : 'rgba(255,255,255,0.4)',
               background: 'none', border: 'none', cursor: 'pointer', borderBottom: tab === t ? '2px solid #fb923c' : 'none',
-              transition: 'all 0.2s',
+              transition: 'all 0.2s', whiteSpace: 'nowrap',
             }}
             onMouseEnter={e => { if (tab !== t) e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
             onMouseLeave={e => { if (tab !== t) e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
@@ -324,6 +341,28 @@ export default function TurnosPage() {
             {t === 'calendar-full' && '📆 Calendario Completo'}
           </button>
         ))}
+
+        {/* Professional Calendars */}
+        {config.enableProfessionalCalendars && config.professionals.length > 0 && (
+          <>
+            <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+            {config.professionals.map(prof => (
+              <button
+                key={prof.id}
+                onClick={() => setTab(`prof_${prof.id}`)}
+                style={{
+                  padding: '14px 20px', fontSize: 13, fontWeight: 600, color: tab === `prof_${prof.id}` ? prof.color : 'rgba(255,255,255,0.4)',
+                  background: 'none', border: 'none', cursor: 'pointer', borderBottom: tab === `prof_${prof.id}` ? `2px solid ${prof.color}` : 'none',
+                  transition: 'all 0.2s', whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => { if (tab !== `prof_${prof.id}`) e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+                onMouseLeave={e => { if (tab !== `prof_${prof.id}`) e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
+              >
+                👤 {prof.name}
+              </button>
+            ))}
+          </>
+        )}
       </div>
 
       {/* PROFESIONALES */}
@@ -724,6 +763,30 @@ export default function TurnosPage() {
             </div>
           ) : (
             <MonthCalendarView config={config} saveConfig={saveConfig} monthView={monthView} setMonthView={setMonthView} generalConfig={generalConfig} />
+          )}
+        </div>
+      )}
+
+      {/* Professional Calendars */}
+      {config.enableProfessionalCalendars && tab.startsWith('prof_') && (
+        <div>
+          {config.services.length === 0 ? (
+            <div style={{ background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.2)', borderRadius: 12, padding: 16, display: 'flex', gap: 12 }}>
+              <AlertCircle size={18} style={{ color: '#fb923c', flexShrink: 0 }} />
+              <div>
+                <p style={{ color: '#fb923c', fontWeight: 600, margin: '0 0 4px', fontSize: 13 }}>Información incompleta</p>
+                <p style={{ color: 'rgba(251,146,60,0.7)', fontSize: 12, margin: 0 }}>
+                  Para usar el calendario necesitás tener al menos 1 servicio.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <ProfessionalCalendarView
+              config={config}
+              saveConfig={saveConfig}
+              generalConfig={generalConfig}
+              professionalId={tab.substring(5)}
+            />
           )}
         </div>
       )}
@@ -1538,6 +1601,321 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                Guardar
+              </button>
+              <button onClick={() => setOpenModal(false)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Professional Calendar View - Same form as Full Calendar, filtered by professional
+function ProfessionalCalendarView({ config, saveConfig, generalConfig, professionalId }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; generalConfig: any; professionalId: string }) {
+  const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
+  const [openModal, setOpenModal] = useState(false)
+  const [monthView, setMonthView] = useState(new Date())
+  const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
+
+  const prof = config.professionals.find(p => p.id === professionalId)
+  const year = monthView.getFullYear()
+  const month = monthView.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const daysInMonth = lastDay.getDate()
+  const startingDayOfWeek = firstDay.getDay()
+
+  const days = []
+  for (let i = 0; i < startingDayOfWeek; i++) days.push(null)
+  for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i))
+
+  const getAppointmentsForDay = (date: Date) => {
+    const dateKey = getDateKey(date)
+    return config.appointments.filter(a => a.professionalId === professionalId && a.startTime.startsWith(dateKey))
+  }
+
+  const handleCreateTurno = (date: Date) => {
+    const dateStr = getDateKey(date)
+    setSelectedDateForCreate(date)
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
+    setEditingAppt(null)
+    setOpenModal(true)
+  }
+
+  const saveTurno = () => {
+    if (!form.clientName || !form.profId || !form.date || !form.startTime) return
+
+    const service = config.services.find(s => s.id === form.serviceId)
+    if (!service) return
+
+    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.complexity || 1)) {
+      const prof = config.professionals.find(p => p.id === form.profId)
+      const maxCap = getMaxCapacity(config, form.profId)
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+      return
+    }
+
+    const appointments = generateAppointments(form, config, service)
+
+    saveConfig({ ...config, appointments: [...config.appointments, ...appointments] })
+
+    if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
+      const professional = config.professionals.find(p => p.id === form.profId)
+      const serviceName = service?.name || ''
+      const professionalName = professional?.name || ''
+
+      const message = `¡Tu turno está confirmado! 📅
+
+Servicio: ${serviceName}
+Profesional: ${professionalName}
+Fecha: ${new Date(form.date).toLocaleDateString('es-AR')}
+Hora: ${form.startTime}
+
+Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
+
+      sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
+        .then(result => {
+          if (result.success) {
+            console.log('✓ WhatsApp enviado a', form.clientWhatsApp)
+          } else {
+            console.warn('✗ Error enviando WhatsApp:', result.error)
+          }
+        })
+        .catch(err => console.error('Error enviando WhatsApp:', err))
+    }
+
+    setOpenModal(false)
+  }
+
+  if (!prof) return <div style={{ color: 'rgba(255,255,255,0.4)' }}>Profesional no encontrado</div>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 style={{ color: prof.color, margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: prof.color }} />
+          📅 {prof.name}
+        </h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setMonthView(new Date(year, month - 1))} style={{ padding: '8px 12px', background: 'rgba(37,99,255,0.1)', border: '1px solid rgba(37,99,255,0.3)', color: '#2563FF', borderRadius: 8, cursor: 'pointer' }}>
+            ← Anterior
+          </button>
+          <span style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600, minWidth: 180, textAlign: 'center' }}>
+            {monthView.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
+          </span>
+          <button onClick={() => setMonthView(new Date(year, month + 1))} style={{ padding: '8px 12px', background: 'rgba(37,99,255,0.1)', border: '1px solid rgba(37,99,255,0.3)', color: '#2563FF', borderRadius: 8, cursor: 'pointer' }}>
+            Siguiente →
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+        {['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'].map(day => (
+          <div key={day} style={{ textAlign: 'center', fontWeight: 700, color: 'rgba(255,255,255,0.4)', fontSize: 12, padding: 8 }}>
+            {day}
+          </div>
+        ))}
+
+        {days.map((date, idx) => {
+          const appts = date ? getAppointmentsForDay(date) : []
+          return (
+            <div
+              key={idx}
+              onClick={() => date && setMonthView(date)}
+              style={{
+                minHeight: 120,
+                background: date ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.2)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 8,
+                padding: 8,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                overflowY: 'auto',
+                cursor: date ? 'pointer' : 'default',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { if (date) (e.currentTarget as HTMLElement).style.background = 'rgba(37,99,255,0.08)' }}
+              onMouseLeave={e => { if (date) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)' }}
+            >
+              {date && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 700, margin: 0 }}>
+                      {date.getDate()}
+                    </p>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleCreateTurno(date)
+                      }}
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: 9,
+                        background: 'rgba(37,99,255,0.2)',
+                        border: '1px solid rgba(37,99,255,0.4)',
+                        color: '#60a5fa',
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(37,99,255,0.3)' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(37,99,255,0.2)' }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  {appts.slice(0, 4).map(a => (
+                    <div
+                      key={a.id}
+                      onClick={e => { e.stopPropagation() }}
+                      style={{
+                        background: `${prof.color}15`,
+                        border: `1px solid ${prof.color}40`,
+                        borderRadius: 4,
+                        padding: '3px 4px',
+                        fontSize: 8,
+                        color: 'white',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${prof.color}30`; (e.currentTarget as HTMLElement).style.borderColor = `${prof.color}80` }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${prof.color}15`; (e.currentTarget as HTMLElement).style.borderColor = `${prof.color}40` }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <strong style={{ fontSize: 8, lineHeight: 1 }}>{a.clientName}</strong>
+                        <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{a.startTime.substring(11, 16)}</span>
+                        {config.enableComplexity && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>C{a.complexity || 1}</span>}
+                      </div>
+                    </div>
+                  ))}
+                  {appts.length > 4 && (
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 7, margin: 0 }}>
+                      +{appts.length - 4} más
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {openModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>Nuevo Turno - {prof.name}</h2>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fecha</label>
+              <input type="text" disabled value={form.date} style={{ ...inputStyle, opacity: 0.6 }} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hora Inicio</label>
+                <input type="time" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hora Fin</label>
+                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16, padding: 12, background: `${prof.color}15`, border: `1px solid ${prof.color}40`, borderRadius: 8 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: prof.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Profesional</label>
+              <div style={{ fontSize: 14, color: prof.color, fontWeight: 600 }}>✓ {prof.name} - {prof.specialty}</div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Servicio</label>
+              <select value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                <option value="">Seleccionar servicio</option>
+                {config.services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            {config.enableComplexity && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complejidad (slots)</label>
+                <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                  <option value={1}>1 slot (simple)</option>
+                  <option value={2}>2 slots</option>
+                  <option value={3}>3 slots</option>
+                  <option value={4}>4 slots (máx)</option>
+                </select>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Repetir turno</label>
+              <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                <option value="">No repetir (una sola vez)</option>
+                <optgroup label="Selecciona los días que se repite:">
+                  <option value="1">Todos los lunes</option>
+                  <option value="2">Todos los martes</option>
+                  <option value="3">Todos los miércoles</option>
+                  <option value="4">Todos los jueves</option>
+                  <option value="5">Todos los viernes</option>
+                  <option value="1,3,5">Lunes, miércoles, viernes</option>
+                  <option value="2,4">Martes y jueves</option>
+                  <option value="1,2,3,4,5">Lunes a viernes</option>
+                  <option value="0,6">Fines de semana</option>
+                  <option value="1,2,3,4,5,0,6">Todos los días</option>
+                </optgroup>
+              </select>
+            </div>
+
+            {form.recurring && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>¿Cuántas sesiones?</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="52"
+                  value={form.sessionCount}
+                  onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
+                  style={inputStyle}
+                  onFocus={focus}
+                  onBlur={blur}
+                  placeholder="Ej: 10 para 10 sesiones en esos días"
+                />
+                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
+                  <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
+                    ✓ Se crearán {form.sessionCount} sesiones
+                  </p>
+                  <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
+                    Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cliente (Nombre)</label>
+              <input type="text" placeholder="Ej: Juan Pérez" value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>WhatsApp</label>
+              <input type="text" placeholder="+54 9 11 2345 6789" value={form.clientWhatsApp} onChange={e => setForm({ ...form, clientWhatsApp: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
+              <input type="email" placeholder="cliente@email.com" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: `linear-gradient(135deg,${prof.color},${prof.color}99)`, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                 Guardar
               </button>
               <button onClick={() => setOpenModal(false)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
