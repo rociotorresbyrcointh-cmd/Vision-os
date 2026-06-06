@@ -65,8 +65,11 @@ export async function POST(req: NextRequest) {
       })
 
     if (configError) {
-      console.warn('⚠️ Config error (no crítico):', configError)
+      console.error('❌ Config error detallado:', JSON.stringify(configError, null, 2))
+      console.warn('⚠️ Config error (no crítico):', configError.message)
       // No es crítico si falla - la cuenta de Auth se creó
+    } else {
+      console.log('✅ Config guardada exitosamente')
     }
 
     console.log('✅ Registro completado')
