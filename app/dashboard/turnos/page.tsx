@@ -987,9 +987,9 @@ const MAX_CAPACITY_UNIFIED = 10
             }
 
             return (
-              <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 10, overflowX: 'auto' }}>
-                {/* Sticky Header */}
-                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'inherit', gap: 10, position: 'sticky', top: 0, background: 'linear-gradient(180deg,#0a0a18,#15101e)', zIndex: 100, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+              <div>
+                {/* Sticky Header - positioned sticky at scroll level */}
+                <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 10, position: 'sticky', top: 0, background: 'linear-gradient(180deg,#0a0a18,#15101e)', zIndex: 100, paddingBottom: 10, paddingTop: 10, borderBottom: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                   <div />
                   {weekDates.map((d, i) => (
                     <div key={i} style={{ textAlign: 'center', marginBottom: 8 }}>
@@ -1005,8 +1005,10 @@ const MAX_CAPACITY_UNIFIED = 10
                   ))}
                 </div>
 
-                {/* Hour rows */}
-                {hoursTexts.map(hourText => (
+                {/* Grid with hour rows */}
+                <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 10, overflowX: 'auto' }}>
+                  {/* Hour rows */}
+                  {hoursTexts.map(hourText => (
                   <div key={hourText} style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'inherit', gap: 6 }}>
                     <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 9, margin: 0, textAlign: 'right', paddingRight: 6 }}>{hourText}</p>
 
@@ -1077,6 +1079,7 @@ const MAX_CAPACITY_UNIFIED = 10
                     })}
                   </div>
                 ))}
+              </div>
               </div>
             )
           })()
