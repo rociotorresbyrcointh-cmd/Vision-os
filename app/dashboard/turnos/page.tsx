@@ -39,7 +39,7 @@ export default function TurnosPage() {
   const [profForm, setProfForm] = useState({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899' })
 
   const [editingSvc, setEditingSvc] = useState<Service | null>(null)
-  const [svcForm, setSvcForm] = useState({ name: '', durationMinutes: 60, price: 0, description: '' })
+  const [svcForm, setSvcForm] = useState({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
 
   const [editingBlock, setEditingBlock] = useState<any>(null)
   const [blockForm, setBlockForm] = useState({ title: '', startDate: '', startTime: '09:00', endDate: '', endTime: '18:00', profId: '', recurring: '' })
@@ -86,16 +86,16 @@ export default function TurnosPage() {
 
   const addService = () => {
     const id = Date.now().toString()
-    const newSvc: Service = { id, ...svcForm }
+    const newSvc: Service = { id, ...svcForm, complexity: config.enableComplexity ? svcForm.complexity : undefined }
     saveConfig({ ...config, services: [...config.services, newSvc] })
-    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
+    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
   }
 
   const updateService = (id: string) => {
-    const updated = config.services.map(s => s.id === id ? { ...s, ...svcForm } : s)
+    const updated = config.services.map(s => s.id === id ? { ...s, ...svcForm, complexity: config.enableComplexity ? svcForm.complexity : undefined } : s)
     saveConfig({ ...config, services: updated })
     setEditingSvc(null)
-    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
+    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
   }
 
   const deleteService = (id: string) => {
@@ -189,6 +189,30 @@ export default function TurnosPage() {
           </div>
         </div>
         <div style={{ height: 1, background: 'linear-gradient(90deg,rgba(251,146,60,0.25),transparent 60%)', marginTop: 16 }} />
+      </div>
+
+      {/* Configuración General */}
+      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <p style={{ color: 'white', fontWeight: 600, fontSize: 14, margin: '0 0 4px' }}>Sistema de complejidad/slots</p>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Permite servicios que ocupan múltiples turnos simultáneamente</p>
+        </div>
+        <button
+          onClick={() => saveConfig({ ...config, enableComplexity: !config.enableComplexity })}
+          style={{
+            background: config.enableComplexity ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${config.enableComplexity ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+            color: config.enableComplexity ? '#86efac' : 'rgba(255,255,255,0.5)',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {config.enableComplexity ? '✓ Activado' : '○ Desactivado'}
+        </button>
       </div>
 
       {/* Tabs */}
@@ -377,6 +401,18 @@ export default function TurnosPage() {
                 <textarea placeholder="Detalles del servicio..." value={svcForm.description} onChange={e => setSvcForm({ ...svcForm, description: e.target.value })} style={{ ...inputStyle, resize: 'none', height: 70 }} onFocus={focus} onBlur={blur} />
               </div>
 
+              {config.enableComplexity && (
+                <div>
+                  <label style={labelStyle}>Complejidad (slots que ocupa)</label>
+                  <select value={svcForm.complexity} onChange={e => setSvcForm({ ...svcForm, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value={1}>1 slot (simple)</option>
+                    <option value={2}>2 slots</option>
+                    <option value={3}>3 slots</option>
+                    <option value={4}>4 slots (máx)</option>
+                  </select>
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   if (editingSvc) updateService(editingSvc.id)
@@ -431,6 +467,11 @@ export default function TurnosPage() {
                           {svc.price > 0 && (
                             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
                               <DollarSign size={12} /> ${svc.price}
+                            </span>
+                          )}
+                          {svc.complexity && svc.complexity > 1 && (
+                            <span style={{ background: 'rgba(147,51,234,0.2)', color: '#a78bfa', fontSize: 10, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+                              🔹 {svc.complexity} slots
                             </span>
                           )}
                         </div>
