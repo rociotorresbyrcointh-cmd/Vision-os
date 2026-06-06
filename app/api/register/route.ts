@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       .from('business_config')
       .insert({
         id: `config_${Date.now()}`,
-        user_id: authData.user.id,
+        user_id: authData.user!.id,
         business_name: company,
         sector: sector || 'Otro',
       })
@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       user: {
-        id: authData.user.id,
-        email: authData.user.email,
+        id: authData.user!.id,
+        email: authData.user!.email,
       },
     }, { status: 200 })
   } catch (error) {
