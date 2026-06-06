@@ -39,7 +39,7 @@ export default function TurnosPage() {
   const [profForm, setProfForm] = useState({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899' })
 
   const [editingSvc, setEditingSvc] = useState<Service | null>(null)
-  const [svcForm, setSvcForm] = useState({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
+  const [svcForm, setSvcForm] = useState({ name: '', durationMinutes: 60, price: 0, description: '' })
 
   const [editingBlock, setEditingBlock] = useState<any>(null)
   const [blockForm, setBlockForm] = useState({ title: '', startDate: '', startTime: '09:00', endDate: '', endTime: '18:00', profId: '', recurring: '' })
@@ -86,16 +86,16 @@ export default function TurnosPage() {
 
   const addService = () => {
     const id = Date.now().toString()
-    const newSvc: Service = { id, ...svcForm, complexity: config.enableComplexity ? svcForm.complexity : undefined }
+    const newSvc: Service = { id, ...svcForm }
     saveConfig({ ...config, services: [...config.services, newSvc] })
-    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
+    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
   }
 
   const updateService = (id: string) => {
-    const updated = config.services.map(s => s.id === id ? { ...s, ...svcForm, complexity: config.enableComplexity ? svcForm.complexity : undefined } : s)
+    const updated = config.services.map(s => s.id === id ? { ...s, ...svcForm } : s)
     saveConfig({ ...config, services: updated })
     setEditingSvc(null)
-    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '', complexity: 1 })
+    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
   }
 
   const deleteService = (id: string) => {
@@ -401,18 +401,6 @@ export default function TurnosPage() {
                 <textarea placeholder="Detalles del servicio..." value={svcForm.description} onChange={e => setSvcForm({ ...svcForm, description: e.target.value })} style={{ ...inputStyle, resize: 'none', height: 70 }} onFocus={focus} onBlur={blur} />
               </div>
 
-              {config.enableComplexity && (
-                <div>
-                  <label style={labelStyle}>Complejidad (slots que ocupa)</label>
-                  <select value={svcForm.complexity} onChange={e => setSvcForm({ ...svcForm, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                    <option value={1}>1 slot (simple)</option>
-                    <option value={2}>2 slots</option>
-                    <option value={3}>3 slots</option>
-                    <option value={4}>4 slots (máx)</option>
-                  </select>
-                </div>
-              )}
-
               <button
                 onClick={() => {
                   if (editingSvc) updateService(editingSvc.id)
@@ -467,11 +455,6 @@ export default function TurnosPage() {
                           {svc.price > 0 && (
                             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
                               <DollarSign size={12} /> ${svc.price}
-                            </span>
-                          )}
-                          {svc.complexity && svc.complexity > 1 && (
-                            <span style={{ background: 'rgba(147,51,234,0.2)', color: '#a78bfa', fontSize: 10, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
-                              🔹 {svc.complexity} slots
                             </span>
                           )}
                         </div>
@@ -650,7 +633,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
   const [selectedDayForView, setSelectedDayForView] = useState<Date | null>(null)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedProfId, setSelectedProfId] = useState<string>('')
-  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1 })
+  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, complexity: 1 })
 
   // Verificar y enviar recordatorios automáticamente
   useEffect(() => {
@@ -669,14 +652,14 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
   const openModal = (profId: string, date: Date, time: string) => {
     setEditingAppt(null)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1 })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1 })
     setModalOpen(true)
   }
 
   const editAppt = (appt: Appointment) => {
     const [startDate, startTime] = appt.startTime.split('T')
     setEditingAppt(appt)
-    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1 })
+    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, complexity: appt.complexity || 1 })
     setModalOpen(true)
   }
 
@@ -741,6 +724,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
             endTime: apptEndDate.toISOString(),
             status: form.status,
             notes: form.notes,
+            complexity: form.complexity ? Number(form.complexity) : 1,
             createdAt: new Date().toISOString(),
             source: 'admin',
           })
@@ -766,6 +750,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
         endTime: endDateTime,
         status: form.status,
         notes: form.notes,
+        complexity: form.complexity ? Number(form.complexity) : 1,
         createdAt: new Date().toISOString(),
         source: 'admin',
       })
@@ -773,7 +758,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
     if (editingAppt) {
       const updated = config.appointments.map(a => a.id === editingAppt.id
-        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes }
+        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, complexity: form.complexity ? Number(form.complexity) : 1 }
         : a
       )
       saveConfig({ ...config, appointments: updated })
@@ -1168,9 +1153,17 @@ const MAX_CAPACITY_UNIFIED = 10
                             el.style.borderColor = c + '40';
                           }}
                         >
-                          <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0 }}>{a.clientName}</p>
+                          <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0 }}>👤 {a.clientName}</p>
                           <p style={{ color: `${prof?.color}99`, fontSize: 11, margin: '4px 0 0' }}>
-                            {config.services.find(s => s.id === a.serviceId)?.name} · {a.status}
+                            🛠️ {config.services.find(s => s.id === a.serviceId)?.name}
+                          </p>
+                          {config.enableComplexity && a.complexity && a.complexity > 1 && (
+                            <p style={{ color: '#fbbf24', fontSize: 10, margin: '3px 0 0', fontWeight: 600 }}>
+                              🔹 Complejidad: {a.complexity} slots
+                            </p>
+                          )}
+                          <p style={{ color: `${prof?.color}66`, fontSize: 10, margin: '3px 0 0' }}>
+                            {a.status}
                           </p>
                         </div>
                       ))}
@@ -1375,6 +1368,18 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
                 {config.services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
+
+            {config.enableComplexity && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complejidad (slots)</label>
+                <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                  <option value={1}>1 slot (simple)</option>
+                  <option value={2}>2 slots</option>
+                  <option value={3}>3 slots</option>
+                  <option value={4}>4 slots (máx)</option>
+                </select>
+              </div>
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cliente (Nombre)</label>

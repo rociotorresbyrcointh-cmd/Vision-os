@@ -16,7 +16,6 @@ export interface Service {
   durationMinutes: number
   price: number
   description?: string
-  complexity?: number // 1-4: cuántos "slots" ocupa (solo si está habilitado en config)
 }
 
 export interface Appointment {
@@ -30,6 +29,7 @@ export interface Appointment {
   endTime: string   // ISO 8601: "2026-06-05T15:15"
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   notes?: string
+  complexity?: number // 1-4: complejidad/slots que ocupa este turno
   createdAt: string
   source: 'admin' | 'public' // admin = creado por el dueño, public = reserva del cliente
 }
