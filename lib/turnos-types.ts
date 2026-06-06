@@ -31,8 +31,19 @@ export interface Appointment {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   notes?: string
   complexity?: number // 1-4: complejidad/slots que ocupa este turno
+  healthInsurance?: string // ej: OSDE, Swiss Medical, etc.
+  membershipNumber?: string // número de afiliado/carnet
   createdAt: string
   source: 'admin' | 'public' // admin = creado por el dueño, public = reserva del cliente
+}
+
+export interface PatientProfile {
+  id: string // basado en clientEmail o teléfono
+  clientName: string
+  clientWhatsApp?: string
+  clientEmail?: string
+  healthInsurance?: string
+  membershipNumber?: string
 }
 
 // Configuración de turnos por negocio
@@ -41,8 +52,10 @@ export interface TurnosConfig {
   services: Service[]
   appointments: Appointment[]
   blockedTimes: BlockedTime[] // vacaciones, almuerzo, etc
+  patients?: PatientProfile[] // perfiles de pacientes para auto-relleno
   enableComplexity?: boolean // mostrar sistema de complejidad/slots
   enableProfessionalCalendars?: boolean // mostrar calendario por profesional
+  enableInsuranceInfo?: boolean // mostrar campos de seguro/cobertura
 }
 
 export interface BlockedTime {

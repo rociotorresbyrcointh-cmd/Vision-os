@@ -318,6 +318,23 @@ export default function TurnosPage() {
         >
           {config.enableProfessionalCalendars ? '✓ Calendarios por Profesional' : '○ Calendarios por Profesional'}
         </button>
+
+        <button
+          onClick={() => saveConfig({ ...config, enableInsuranceInfo: !config.enableInsuranceInfo })}
+          style={{
+            background: config.enableInsuranceInfo ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${config.enableInsuranceInfo ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+            color: config.enableInsuranceInfo ? '#86efac' : 'rgba(255,255,255,0.5)',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          {config.enableInsuranceInfo ? '✓ Información de Seguro' : '○ Información de Seguro'}
+        </button>
       </div>
 
       {/* Tabs */}
@@ -805,7 +822,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
   const [selectedDayForView, setSelectedDayForView] = useState<Date | null>(null)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedProfId, setSelectedProfId] = useState<string>('')
-  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, complexity: 1 })
+  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, complexity: 1, healthInsurance: '', membershipNumber: '' })
 
   // Verificar y enviar recordatorios automáticamente
   useEffect(() => {
@@ -824,14 +841,14 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
   const openModal = (profId: string, date: Date, time: string) => {
     setEditingAppt(null)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1 })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1, healthInsurance: '', membershipNumber: '' })
     setModalOpen(true)
   }
 
   const editAppt = (appt: Appointment) => {
     const [startDate, startTime] = appt.startTime.split('T')
     setEditingAppt(appt)
-    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, complexity: appt.complexity || 1 })
+    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, complexity: appt.complexity || 1, healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
     setModalOpen(true)
   }
 
@@ -889,7 +906,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
     console.log('Closing modal and resetting form')
     setModalOpen(false)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1 })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1, healthInsurance: '', membershipNumber: '' })
   }
 
   const deleteAppt = (id: string) => {
@@ -1304,7 +1321,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
 
   const year = monthView.getFullYear()
   const month = monthView.getMonth()
@@ -1325,7 +1342,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
     setEditingAppt(null)
     setOpenModal(true)
   }
@@ -1599,6 +1616,20 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               <input type="email" placeholder="cliente@email.com" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
             </div>
 
+            {config.enableInsuranceInfo && (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Seguro / Cobertura</label>
+                  <input type="text" placeholder="Ej: OSDE, Swiss Medical, Medicare..." value={form.healthInsurance || ''} onChange={e => setForm({ ...form, healthInsurance: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Número de Afiliado</label>
+                  <input type="text" placeholder="Ej: 12345678" value={form.membershipNumber || ''} onChange={e => setForm({ ...form, membershipNumber: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                </div>
+              </>
+            )}
+
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                 Guardar
@@ -1620,7 +1651,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const [openModal, setOpenModal] = useState(false)
   const [monthView, setMonthView] = useState(new Date())
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
 
   const prof = config.professionals.find(p => p.id === professionalId)
   const year = monthView.getFullYear()
@@ -1642,7 +1673,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1 })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
     setEditingAppt(null)
     setOpenModal(true)
   }
@@ -1913,6 +1944,20 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
               <input type="email" placeholder="cliente@email.com" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
             </div>
+
+            {config.enableInsuranceInfo && (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Seguro / Cobertura</label>
+                  <input type="text" placeholder="Ej: OSDE, Swiss Medical, Medicare..." value={form.healthInsurance || ''} onChange={e => setForm({ ...form, healthInsurance: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Número de Afiliado</label>
+                  <input type="text" placeholder="Ej: 12345678" value={form.membershipNumber || ''} onChange={e => setForm({ ...form, membershipNumber: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                </div>
+              </>
+            )}
 
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: `linear-gradient(135deg,${prof.color},${prof.color}99)`, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
