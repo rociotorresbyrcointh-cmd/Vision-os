@@ -8,6 +8,7 @@ export interface Professional {
   hoursStart: string // "09:00"
   hoursEnd: string   // "18:00"
   daysOfWeek: number[] // 0 = domingo, 1 = lunes, ... 6 = sábado
+  maxCapacityPerHour?: number // 1-20: capacidad máxima por hora (default: 4)
 }
 
 export interface Service {

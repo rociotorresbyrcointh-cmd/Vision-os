@@ -94,17 +94,37 @@ function generateAppointments(
   return appointments
 }
 
+// Funciones unificadas de capacidad por profesional
+function getUsedCapacity(config: TurnosConfig, profId: string, dateKey: string, hour: string): number {
+  if (!config.enableComplexity) return 0
+  return config.appointments
+    .filter(a => a.professionalId === profId && a.startTime.startsWith(dateKey) && a.startTime.substring(11, 16) === hour)
+    .reduce((total, appt) => total + (appt.complexity || 1), 0)
+}
+
+function getMaxCapacity(config: TurnosConfig, profId: string): number {
+  const prof = config.professionals.find(p => p.id === profId)
+  return prof?.maxCapacityPerHour ?? 4
+}
+
+function canAddAppointment(config: TurnosConfig, profId: string, dateKey: string, hour: string, complexity: number): boolean {
+  if (!config.enableComplexity) return true
+  const usedCapacity = getUsedCapacity(config, profId, dateKey, hour)
+  const maxCapacity = getMaxCapacity(config, profId)
+  return (usedCapacity + complexity) <= maxCapacity
+}
+
 export default function TurnosPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('calendar')
   const [monthView, setMonthView] = useState(new Date())
-  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [], enableComplexity: false, maxSlotsPerHour: 4 })
+  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [], enableComplexity: false })
   const [generalConfig, setGeneralConfig] = useState<any>({})
   const [weekStart, setWeekStart] = useState(new Date())
 
   // Form state
   const [editingProf, setEditingProf] = useState<Professional | null>(null)
-  const [profForm, setProfForm] = useState({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899' })
+  const [profForm, setProfForm] = useState({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
 
   const [editingSvc, setEditingSvc] = useState<Service | null>(null)
   const [svcForm, setSvcForm] = useState({ name: '', durationMinutes: 60, price: 0, description: '' })
@@ -138,14 +158,14 @@ export default function TurnosPage() {
     const id = Date.now().toString()
     const newProf: Professional = { id, ...profForm }
     saveConfig({ ...config, professionals: [...config.professionals, newProf] })
-    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899' })
+    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
   }
 
   const updateProfessional = (id: string) => {
     const updated = config.professionals.map(p => p.id === id ? { ...p, ...profForm } : p)
     saveConfig({ ...config, professionals: updated })
     setEditingProf(null)
-    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899' })
+    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
   }
 
   const deleteProfessional = (id: string) => {
@@ -172,7 +192,7 @@ export default function TurnosPage() {
 
   const startEditProf = (prof: Professional) => {
     setEditingProf(prof)
-    setProfForm({ name: prof.name, specialty: prof.specialty, hoursStart: prof.hoursStart, hoursEnd: prof.hoursEnd, daysOfWeek: prof.daysOfWeek, color: prof.color })
+    setProfForm({ name: prof.name, specialty: prof.specialty, hoursStart: prof.hoursStart, hoursEnd: prof.hoursEnd, daysOfWeek: prof.daysOfWeek, color: prof.color, maxCapacityPerHour: prof.maxCapacityPerHour || 4 })
   }
 
   const startEditSvc = (svc: Service) => {
@@ -371,6 +391,24 @@ export default function TurnosPage() {
                 </div>
               </div>
 
+              <div>
+                <label style={labelStyle}>Capacidad máxima por hora</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={profForm.maxCapacityPerHour || 4}
+                  onChange={e => setProfForm({ ...profForm, maxCapacityPerHour: Number(e.target.value) })}
+                  style={inputStyle}
+                  onFocus={focus}
+                  onBlur={blur}
+                  placeholder="Ej: 4, 10, 20"
+                />
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '6px 0 0' }}>
+                  Máximo de pacientes/clientes que pueden atenderse simultáneamente en una hora
+                </p>
+              </div>
+
               <button
                 onClick={() => {
                   if (editingProf) updateProfessional(editingProf.id)
@@ -391,7 +429,7 @@ export default function TurnosPage() {
                 <button
                   onClick={() => {
                     setEditingProf(null)
-                    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899' })
+                    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
                   }}
                   style={{
                     background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)',
@@ -421,6 +459,9 @@ export default function TurnosPage() {
                       <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, margin: '0 0 6px' }}>{prof.specialty}</p>
                       <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10, margin: 0 }}>
                         {prof.hoursStart} - {prof.hoursEnd} · {['D', 'L', 'M', 'M', 'J', 'V', 'S'].filter((_, i) => prof.daysOfWeek.includes(i)).join(', ')}
+                      </p>
+                      <p style={{ color: '#fbbf24', fontSize: 10, margin: '6px 0 0', fontWeight: 600 }}>
+                        Capacidad: {prof.maxCapacityPerHour || 4} por hora
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -731,32 +772,17 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     setModalOpen(true)
   }
 
-  // Validar slots disponibles para complejidad
-  const getUsedSlots = (profId: string, dateKey: string, hour: string): number => {
-    if (!config.enableComplexity) return 0
-    return config.appointments
-      .filter(a => a.professionalId === profId && a.startTime.startsWith(dateKey) && a.startTime.substring(11, 16) === hour)
-      .reduce((total, appt) => {
-        return total + (appt.complexity || 1)
-      }, 0)
-  }
-
-  const canAddApptWithComplexity = (profId: string, dateKey: string, hour: string, complexity: number): boolean => {
-    if (!config.enableComplexity) return true
-    const usedSlots = getUsedSlots(profId, dateKey, hour)
-    const maxSlots = config.maxSlotsPerHour || 4
-    return (usedSlots + complexity) <= maxSlots
-  }
-
   const saveAppt = () => {
     if (!form.clientName.trim() || !form.serviceId || !form.profId || !form.date || !form.startTime) return
 
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
 
-    // Validar slots si está habilitada la complejidad
-    if (!canAddApptWithComplexity(form.profId, form.date, form.startTime, form.complexity || 1)) {
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + (config.maxSlotsPerHour || 4) + ' slots')
+    // Validar capacidad si está habilitada la complejidad
+    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.complexity || 1)) {
+      const prof = config.professionals.find(p => p.id === form.profId)
+      const maxCap = getMaxCapacity(config, form.profId)
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
       return
     }
 
@@ -1241,29 +1267,17 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
     setOpenModal(true)
   }
 
-  const getUsedSlotsMonth = (profId: string, dateKey: string, hour: string): number => {
-    if (!config.enableComplexity) return 0
-    return config.appointments
-      .filter(a => a.professionalId === profId && a.startTime.startsWith(dateKey) && a.startTime.substring(11, 16) === hour)
-      .reduce((total, appt) => total + (appt.complexity || 1), 0)
-  }
-
-  const canAddApptWithComplexityMonth = (profId: string, dateKey: string, hour: string, complexity: number): boolean => {
-    if (!config.enableComplexity) return true
-    const usedSlots = getUsedSlotsMonth(profId, dateKey, hour)
-    const maxSlots = config.maxSlotsPerHour || 4
-    return (usedSlots + complexity) <= maxSlots
-  }
-
   const saveTurno = () => {
     if (!form.clientName || !form.profId || !form.date || !form.startTime) return
 
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
 
-    // Validar slots si está habilitada la complejidad
-    if (!canAddApptWithComplexityMonth(form.profId, form.date, form.startTime, form.complexity || 1)) {
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + (config.maxSlotsPerHour || 4) + ' slots')
+    // Validar capacidad si está habilitada la complejidad
+    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.complexity || 1)) {
+      const prof = config.professionals.find(p => p.id === form.profId)
+      const maxCap = getMaxCapacity(config, form.profId)
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
       return
     }
 
