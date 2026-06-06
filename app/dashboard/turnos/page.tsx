@@ -1067,6 +1067,19 @@ const MAX_CAPACITY_UNIFIED = 10
                 </div>
               )}
 
+              {/* Complejidad */}
+              {config.enableComplexity && (
+                <div>
+                  <label style={labelStyle}>Complejidad (slots)</label>
+                  <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value={1}>1 slot (simple)</option>
+                    <option value={2}>2 slots</option>
+                    <option value={3}>3 slots</option>
+                    <option value={4}>4 slots (máx)</option>
+                  </select>
+                </div>
+              )}
+
               {/* Notas */}
               <div>
                 <label style={labelStyle}>Notas internas</label>
@@ -1154,9 +1167,9 @@ const MAX_CAPACITY_UNIFIED = 10
                           <p style={{ color: `${prof?.color}99`, fontSize: 11, margin: '4px 0 0' }}>
                             🛠️ {config.services.find(s => s.id === a.serviceId)?.name}
                           </p>
-                          {config.enableComplexity && a.complexity && a.complexity > 1 && (
+                          {config.enableComplexity && (
                             <p style={{ color: '#fbbf24', fontSize: 10, margin: '3px 0 0', fontWeight: 600 }}>
-                              🔹 Complejidad: {a.complexity} slots
+                              ⚡ {a.complexity || 1} slot{(a.complexity || 1) !== 1 ? 's' : ''}
                             </p>
                           )}
                           <p style={{ color: `${prof?.color}66`, fontSize: 10, margin: '3px 0 0' }}>
@@ -1313,7 +1326,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}30`; (e.currentTarget as HTMLElement).style.borderColor = `${prof?.color || '#2563FF'}80` }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}15`; (e.currentTarget as HTMLElement).style.borderColor = `${prof?.color || '#2563FF'}40` }}
                       >
-                        <strong>{a.clientName}</strong> ({a.startTime.substring(11, 16)})
+                        <strong>{a.clientName}</strong> ({a.startTime.substring(11, 16)}) {config.enableComplexity ? `⚡${a.complexity || 1}` : ''}
                       </div>
                     )
                   })}
