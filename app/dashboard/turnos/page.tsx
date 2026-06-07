@@ -892,8 +892,8 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     }
 
     const appointments = generateAppointments(form, config, service)
-    console.log('🔍 DEBUG - Form healthInsurance:', form.healthInsurance)
-    console.log('🔍 DEBUG - Created appointments:', appointments)
+    console.log('🔍 DEBUG - Form healthInsurance:', form.healthInsurance, 'Type:', typeof form.healthInsurance)
+    console.log('🔍 DEBUG - Created appointment:', JSON.stringify(appointments[0], null, 2))
 
     if (editingAppt) {
       const updated = config.appointments.map(a => a.id === editingAppt.id
@@ -1071,9 +1071,12 @@ const MAX_CAPACITY_UNIFIED = 10
                                 {a.clientName}
                               </span>
                               {config.enableInsuranceInfo && (
-                                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', flexShrink: 0, fontWeight: 600 }}>
-                                  {a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}
-                                </span>
+                                <>
+                                  {console.log(`📅 Weekly: ${a.clientName} | healthInsurance="${a.healthInsurance}" | showing: ${a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}`)}
+                                  <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', flexShrink: 0, fontWeight: 600 }}>
+                                    {a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}
+                                  </span>
+                                </>
                               )}
                               {config.enableCapacityPerHour && (
                                 <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 600, flexShrink: 0 }}>
@@ -1337,6 +1340,7 @@ const MAX_CAPACITY_UNIFIED = 10
                           <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '2px 0 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
                             {config.enableInsuranceInfo && (
                               <>
+                                {console.log(`📊 Monthly: ${a.clientName} | healthInsurance="${a.healthInsurance}" | showing: ${a.healthInsurance || 'Particular'}`)}
                                 <span style={{ fontWeight: 600 }}>{a.healthInsurance || 'Particular'}</span>
                                 {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>•</span>}
                               </>
