@@ -60,7 +60,9 @@ function generateAppointments(
           endTime: apptEndDate.toISOString(),
           status: form.status,
           notes: form.notes,
-          capacityPerHour: form.capacityPerHour ? Number(form.complexity) : 1,
+          capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
+          healthInsurance: form.healthInsurance,
+          membershipNumber: form.membershipNumber,
           createdAt: new Date().toISOString(),
           source: 'admin',
         })
@@ -85,7 +87,9 @@ function generateAppointments(
       endTime: endDateTime,
       status: form.status,
       notes: form.notes,
-      capacityPerHour: form.capacityPerHour ? Number(form.complexity) : 1,
+      capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
+      healthInsurance: form.healthInsurance,
+      membershipNumber: form.membershipNumber,
       createdAt: new Date().toISOString(),
       source: 'admin',
     })
@@ -1331,7 +1335,7 @@ const MAX_CAPACITY_UNIFIED = 10
                           <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '2px 0 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
                             {config.enableInsuranceInfo && (
                               <>
-                                <span style={{ fontWeight: 600 }}>{a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}</span>
+                                <span style={{ fontWeight: 600 }}>{a.healthInsurance || 'Particular'}</span>
                                 {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>•</span>}
                               </>
                             )}
@@ -1538,7 +1542,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                           <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
                             {config.enableInsuranceInfo && (
                               <>
-                                <span style={{ fontWeight: 600 }}>{a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}</span>
+                                <span style={{ fontWeight: 600 }}>{a.healthInsurance || 'Particular'}</span>
                                 {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
                               </>
                             )}
@@ -1891,7 +1895,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                         <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
                           {config.enableInsuranceInfo && (
                             <>
-                              <span style={{ fontWeight: 600 }}>{a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}</span>
+                              <span style={{ fontWeight: 600 }}>{a.healthInsurance || 'Particular'}</span>
                               {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
                             </>
                           )}
