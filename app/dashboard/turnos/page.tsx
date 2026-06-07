@@ -1066,7 +1066,7 @@ const MAX_CAPACITY_UNIFIED = 10
                                 {a.clientName}
                               </span>
                               <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', flexShrink: 0 }}>
-                                {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance.substring(0, 1) : 'P'}
+                                {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Particular'}
                               </span>
                               {config.enableCapacityPerHour && (
                                 <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>
@@ -1328,7 +1328,7 @@ const MAX_CAPACITY_UNIFIED = 10
                         >
                           <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</p>
                           <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '2px 0 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            <span>{config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'P'}</span>
+                            <span>{config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Particular'}</span>
                             {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>•</span>}
                             {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                           </p>
@@ -1525,7 +1525,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
                           <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
-                            {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance.substring(0, 1) : 'P'}
+                            {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Particular'}
                             {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
                             {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                           </span>
@@ -1867,7 +1867,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
                         <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
-                          {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance.substring(0, 1) : 'P'}
+                          {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Particular'}
                           {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
                           {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                         </span>
