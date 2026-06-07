@@ -892,6 +892,8 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     }
 
     const appointments = generateAppointments(form, config, service)
+    console.log('🔍 DEBUG - Form healthInsurance:', form.healthInsurance)
+    console.log('🔍 DEBUG - Created appointments:', appointments)
 
     if (editingAppt) {
       const updated = config.appointments.map(a => a.id === editingAppt.id
