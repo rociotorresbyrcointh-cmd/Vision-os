@@ -1271,7 +1271,7 @@ const MAX_CAPACITY_UNIFIED = 10
 
       {/* Modal: Ver todos los turnos del día */}
       {dayViewOpen && selectedDayForView && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => setDayViewOpen(false)}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setDayViewOpen(false)}>
           <div style={{ background: 'linear-gradient(135deg,#0a0a18,#15101e)', borderRadius: 16, border: '1px solid rgba(37,99,255,0.2)', padding: 28, maxWidth: 500, width: '90%', maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: '0 0 20px', letterSpacing: '-0.01em' }}>
               {selectedDayForView.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
