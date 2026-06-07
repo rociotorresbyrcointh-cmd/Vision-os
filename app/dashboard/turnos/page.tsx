@@ -258,7 +258,7 @@ export default function TurnosPage() {
       const id = Date.now().toString()
       const newProf: Professional = { id, ...profForm }
 
-      console.log('📝 [UI] Creating professional:', { id, name: newProf.name, userId: user.id })
+      console.log('📝 [UI] Creating professional:', { id, name: newProf.name, user.id: user.id })
 
       const result = await supabaseAddProfessional(user.id, newProf)
 
@@ -349,10 +349,10 @@ export default function TurnosPage() {
   const addService = async () => {
     try {
       const id = crypto.randomUUID()
-      const newSvc: Service = { id, user_id: userId, ...svcForm }
+      const newSvc: Service = { id, user_id: user.id, ...svcForm }
 
       console.log('📝 Creating service:', newSvc)
-      const result = await addServiceSB(userId, newSvc)
+      const result = await addServiceSB(user.id, newSvc)
 
       if (!result) {
         alert('Error al crear servicio. Intenta nuevamente.')
@@ -371,7 +371,7 @@ export default function TurnosPage() {
   const updateService = async (id: string) => {
     try {
       console.log('📝 Updating service:', id)
-      const result = await updateServiceSB(userId, id, svcForm)
+      const result = await updateServiceSB(user.id, id, svcForm)
 
       if (!result) {
         alert('Error al actualizar servicio. Intenta nuevamente.')
@@ -391,14 +391,14 @@ export default function TurnosPage() {
   const deleteService = async (id: string) => {
     try {
       console.log('🗑️ Attempting to delete service:', id)
-      const appointmentCount = await countAppointmentsByService(userId, id)
+      const appointmentCount = await countAppointmentsByService(user.id, id)
 
       if (appointmentCount > 0) {
         alert(`No se puede eliminar este servicio porque tiene ${appointmentCount} turno${appointmentCount !== 1 ? 's' : ''} asociado${appointmentCount !== 1 ? 's' : ''}. Primero debes eliminar o reasignar esos turnos.`)
         return
       }
 
-      const success = await deleteServiceSB(userId, id)
+      const success = await deleteServiceSB(user.id, id)
 
       if (!success) {
         alert('Error al eliminar servicio. Intenta nuevamente.')
