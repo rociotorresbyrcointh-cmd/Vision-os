@@ -114,6 +114,12 @@ function canAddAppointment(config: TurnosConfig, profId: string, dateKey: string
   return (usedCapacity + complexity) <= maxCapacity
 }
 
+function getComplexityOptions(config: TurnosConfig, profId: string): number[] {
+  if (!config.enableComplexity) return []
+  const maxCapacity = getMaxCapacity(config, profId)
+  return Array.from({ length: maxCapacity }, (_, i) => i + 1)
+}
+
 export default function TurnosPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('calendar')
@@ -828,8 +834,6 @@ export default function TurnosPage() {
   )
 }
 
-const MAX_CAPACITY_NEW = 10
-
 // ─────────────────────────────────────────────────────────────────
 
 function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; generalConfig: any }) {
@@ -1014,32 +1018,29 @@ const MAX_CAPACITY_UNIFIED = 10
 
                     {weekDates.map((date, dayIdx) => {
                       const appts = getAppointmentsAtTime(date, hourText)
-                      const isFull = appts.length >= MAX_CAPACITY_NEW
 
                       return (
                         <div
                           key={`${hourText}-${dayIdx}`}
                           onClick={() => {
-                            if (!isFull) {
-                              setSelectedProfId('')
-                              openModal('', date, hourText)
-                            }
+                            setSelectedProfId('')
+                            openModal('', date, hourText)
                           }}
                           style={{
                             minHeight: 120,
-                            background: isFull ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.025)',
-                            border: isFull ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                            background: 'rgba(255,255,255,0.025)',
+                            border: '1px solid rgba(255,255,255,0.06)',
                             borderRadius: 8,
                             padding: 8,
-                            cursor: !isFull ? 'pointer' : 'default',
+                            cursor: 'pointer',
                             transition: 'all 0.2s',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 3,
                             overflowY: 'auto',
                           }}
-                          onMouseEnter={e => { if (!isFull) (e.currentTarget as HTMLElement).style.background = 'rgba(251,146,60,0.08)' }}
-                          onMouseLeave={e => { if (!isFull) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(251,146,60,0.08)' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)' }}
                         >
                           {appts.map(a => {
                             const prof = config.professionals.find(p => p.id === a.professionalId)
@@ -1229,12 +1230,16 @@ const MAX_CAPACITY_UNIFIED = 10
               {config.enableComplexity && (
                 <div>
                   <label style={labelStyle}>Complejidad (slots)</label>
-                  <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                    <option value={1}>1 slot (simple)</option>
-                    <option value={2}>2 slots</option>
-                    <option value={3}>3 slots</option>
-                    <option value={4}>4 slots (máx)</option>
-                  </select>
+                  {!form.profId ? (
+                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Selecciona profesional primero</p>
+                  ) : (
+                    <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                      <option value="">-- Selecciona complejidad --</option>
+                      {getComplexityOptions(config, form.profId).map(c => (
+                        <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)} slots</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )}
 
@@ -1580,12 +1585,16 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
             {config.enableComplexity && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complejidad (slots)</label>
-                <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                  <option value={1}>1 slot (simple)</option>
-                  <option value={2}>2 slots</option>
-                  <option value={3}>3 slots</option>
-                  <option value={4}>4 slots (máx)</option>
-                </select>
+                {!form.profId ? (
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Selecciona profesional primero</p>
+                ) : (
+                  <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value="">-- Selecciona complejidad --</option>
+                    {getComplexityOptions(config, form.profId).map(c => (
+                      <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)} slots</option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
 
@@ -1911,12 +1920,16 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
             {config.enableComplexity && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complejidad (slots)</label>
-                <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                  <option value={1}>1 slot (simple)</option>
-                  <option value={2}>2 slots</option>
-                  <option value={3}>3 slots</option>
-                  <option value={4}>4 slots (máx)</option>
-                </select>
+                {!form.profId ? (
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Selecciona profesional primero</p>
+                ) : (
+                  <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value="">-- Selecciona complejidad --</option>
+                    {getComplexityOptions(config, form.profId).map(c => (
+                      <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)} slots</option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
 
