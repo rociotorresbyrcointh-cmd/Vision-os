@@ -149,6 +149,8 @@ export default function TurnosPage() {
 
     const loadData = async () => {
       try {
+        console.log('🔍 PHASE 1 VERIFICATION: Starting data load from Supabase...')
+
         // Load from Supabase (source of truth)
         const [professionals, services, appointments, businessConfig] = await Promise.all([
           getProfessionals(user.id),
@@ -157,9 +159,24 @@ export default function TurnosPage() {
           getBusinessConfig(user.id),
         ])
 
+        console.log('✅ PHASE 1 DATA LOADED FROM SUPABASE:')
+        console.log(`  📊 Professionals: ${professionals?.length || 0}`)
+        console.log(`  📋 Services: ${services?.length || 0}`)
+        console.log(`  📅 Appointments: ${appointments?.length || 0}`)
+        console.log(`  ⚙️  Business Config: ${businessConfig ? 'YES' : 'NO'}`)
+
         // Merge with localStorage data as fallback
         const storedTurnos = localStorage.getItem(`bos_turnos_${user.id}`)
         const localData = storedTurnos ? JSON.parse(storedTurnos) : null
+
+        if (localData) {
+          console.log('⚠️  FALLBACK DATA AVAILABLE IN localStorage:')
+          console.log(`  📊 Professionals: ${localData.professionals?.length || 0}`)
+          console.log(`  📋 Services: ${localData.services?.length || 0}`)
+          console.log(`  📅 Appointments: ${localData.appointments?.length || 0}`)
+        } else {
+          console.log('✅ localStorage is EMPTY (as expected on first load)')
+        }
 
         // Use Supabase data as source of truth
         const mergedConfig: TurnosConfig = {
@@ -173,21 +190,32 @@ export default function TurnosPage() {
           enableProfessionalCalendars: localData?.enableProfessionalCalendars ?? false,
         }
 
+        console.log('✅ MERGED CONFIG (Source of Truth = Supabase):')
+        console.log(`  📊 Final Professionals: ${mergedConfig.professionals.length}`)
+        console.log(`  📋 Final Services: ${mergedConfig.services.length}`)
+        console.log(`  📅 Final Appointments: ${mergedConfig.appointments.length}`)
+
         setConfig(mergedConfig)
 
         // Also update localStorage with Supabase data (for offline access)
         localStorage.setItem(`bos_turnos_${user.id}`, JSON.stringify(mergedConfig))
+        console.log('💾 localStorage updated with Supabase data (cache only)')
 
         // Load business settings
         const storedGeneralConfig = localStorage.getItem(`bos_config_${user.id}`)
         const generalConfigData = businessConfig || (storedGeneralConfig ? JSON.parse(storedGeneralConfig) : {})
         setGeneralConfig(generalConfigData)
         localStorage.setItem(`bos_config_${user.id}`, JSON.stringify(generalConfigData))
+
+        console.log('✅ PHASE 1 VERIFICATION COMPLETE: Data loaded successfully from Supabase')
       } catch (error) {
         // Fallback: load from localStorage only if Supabase fails
-        console.error('Failed to load from Supabase, using localStorage fallback:', error)
+        console.error('❌ PHASE 1 FALLBACK TRIGGERED: Failed to load from Supabase, using localStorage fallback:', error)
         const storedTurnos = localStorage.getItem(`bos_turnos_${user.id}`)
-        if (storedTurnos) setConfig(JSON.parse(storedTurnos))
+        if (storedTurnos) {
+          console.log('⚠️  Loading from localStorage fallback')
+          setConfig(JSON.parse(storedTurnos))
+        }
         const storedConfig = localStorage.getItem(`bos_config_${user.id}`)
         if (storedConfig) setGeneralConfig(JSON.parse(storedConfig))
       }
