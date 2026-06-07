@@ -978,7 +978,7 @@ const MAX_CAPACITY_UNIFIED = 10
       </div>
 
       {/* Unified Calendar Grid */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingRight: 20, paddingLeft: 20 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingRight: 12, paddingLeft: 12 }}>
         {config.professionals.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>
             <p>Sin profesionales configurados. Agregá uno primero.</p>
@@ -993,7 +993,7 @@ const MAX_CAPACITY_UNIFIED = 10
             return (
               <div>
                 {/* Sticky Header - positioned sticky at scroll level */}
-                <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 10, position: 'sticky', top: 0, background: 'linear-gradient(180deg,#0a0a18,#15101e)', zIndex: 100, paddingBottom: 10, paddingTop: 10, borderBottom: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 8, position: 'sticky', top: 0, background: 'linear-gradient(180deg,#0a0a18,#15101e)', zIndex: 100, paddingBottom: 10, paddingTop: 10, borderBottom: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                   <div />
                   {weekDates.map((d, i) => (
                     <div key={i} style={{ textAlign: 'center', marginBottom: 8 }}>
@@ -1010,7 +1010,7 @@ const MAX_CAPACITY_UNIFIED = 10
                 </div>
 
                 {/* Grid with hour rows */}
-                <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 10, overflowX: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 8, overflowX: 'auto' }}>
                   {/* Hour rows */}
                   {hoursTexts.map(hourText => (
                   <div key={hourText} style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'inherit', gap: 6 }}>
@@ -1051,22 +1051,22 @@ const MAX_CAPACITY_UNIFIED = 10
                                 cursor: 'pointer',
                                 background: 'rgba(255,255,255,0.05)',
                                 border: `1px solid ${prof?.color || '#2563FF'}`,
-                                borderRadius: 5,
-                                padding: '4px 6px',
+                                borderRadius: 4,
+                                padding: '3px 4px',
                                 display: 'flex',
-                                gap: 5,
+                                gap: 2,
                                 alignItems: 'center',
                                 fontSize: '9px',
                               }}
                               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}30`}
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'}
                             >
-                              <div style={{ width: 5, height: 5, borderRadius: '50%', background: prof?.color || '#2563FF', flexShrink: 0 }} />
-                              <span style={{ color: 'white', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '9px' }}>
+                              <div style={{ width: 3, height: 3, borderRadius: '50%', background: prof?.color || '#2563FF', flexShrink: 0 }} />
+                              <span style={{ color: 'white', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '9px', flex: 1 }}>
                                 {a.clientName}
                               </span>
-                              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}
+                              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', flexShrink: 0 }}>
+                                {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance.substring(0, 1) : 'P'}
                               </span>
                               {config.enableCapacityPerHour && (
                                 <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>
@@ -1307,9 +1307,9 @@ const MAX_CAPACITY_UNIFIED = 10
                           style={{
                             background: prof ? `${prof.color}10` : 'rgba(37,99,255,0.1)',
                             border: prof ? `1px solid ${prof.color}40` : '1px solid rgba(37,99,255,0.4)',
-                            borderRadius: 8,
-                            padding: '10px',
-                            marginTop: '6px',
+                            borderRadius: 6,
+                            padding: '6px 8px',
+                            marginTop: '4px',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
                           }}
@@ -1326,15 +1326,12 @@ const MAX_CAPACITY_UNIFIED = 10
                             el.style.borderColor = c + '40';
                           }}
                         >
-                          <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0 }}>{a.clientName}</p>
-                          <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '3px 0 0' }}>
-                            {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}
+                          <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</p>
+                          <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '2px 0 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <span>{config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'P'}</span>
+                            {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>•</span>}
+                            {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                           </p>
-                          {config.enableCapacityPerHour && (
-                            <p style={{ color: '#fbbf24', fontSize: 10, margin: '2px 0 0', fontWeight: 600 }}>
-                              {a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}
-                            </p>
-                          )}
                         </div>
                       ))}
                     </div>
@@ -1526,9 +1523,12 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}15`; (e.currentTarget as HTMLElement).style.borderColor = `${prof?.color || '#2563FF'}40` }}
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <strong style={{ fontSize: 8, lineHeight: 1 }}>{a.clientName}</strong>
-                          <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}</span>
-                          {config.enableCapacityPerHour && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
+                          <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
+                          <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
+                            {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance.substring(0, 1) : 'P'}
+                            {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
+                            {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
+                          </span>
                         </div>
                       </div>
                     )
@@ -1865,9 +1865,12 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${prof.color}15`; (e.currentTarget as HTMLElement).style.borderColor = `${prof.color}40` }}
                     >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <strong style={{ fontSize: 8, lineHeight: 1 }}>{a.clientName}</strong>
-                        <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}</span>
-                        {config.enableCapacityPerHour && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
+                        <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
+                        <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
+                          {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance.substring(0, 1) : 'P'}
+                          {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
+                          {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
+                        </span>
                       </div>
                     </div>
                   ))}
