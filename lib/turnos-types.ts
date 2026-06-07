@@ -30,7 +30,7 @@ export interface Appointment {
   endTime: string   // ISO 8601: "2026-06-05T15:15"
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   notes?: string
-  complexity?: number // 1-4: complejidad/slots que ocupa este turno
+  capacityPerHour?: number // 1-N: how much of professional's hourly capacity this appointment consumes
   healthInsurance?: string // ej: OSDE, Swiss Medical, etc.
   membershipNumber?: string // número de afiliado/carnet
   createdAt: string
@@ -53,7 +53,7 @@ export interface TurnosConfig {
   appointments: Appointment[]
   blockedTimes: BlockedTime[] // vacaciones, almuerzo, etc
   patients?: PatientProfile[] // perfiles de pacientes para auto-relleno
-  enableComplexity?: boolean // mostrar sistema de complejidad/slots
+  enableCapacityPerHour?: boolean // show capacity per hour system
   enableWeeklyCalendar?: boolean // mostrar calendario semanal
   enableProfessionalCalendars?: boolean // mostrar calendario por profesional
   enableInsuranceInfo?: boolean // mostrar campos de seguro/cobertura

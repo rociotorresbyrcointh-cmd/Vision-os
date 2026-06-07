@@ -60,7 +60,7 @@ function generateAppointments(
           endTime: apptEndDate.toISOString(),
           status: form.status,
           notes: form.notes,
-          complexity: form.complexity ? Number(form.complexity) : 1,
+          capacityPerHour: form.capacityPerHour ? Number(form.complexity) : 1,
           createdAt: new Date().toISOString(),
           source: 'admin',
         })
@@ -85,7 +85,7 @@ function generateAppointments(
       endTime: endDateTime,
       status: form.status,
       notes: form.notes,
-      complexity: form.complexity ? Number(form.complexity) : 1,
+      capacityPerHour: form.capacityPerHour ? Number(form.complexity) : 1,
       createdAt: new Date().toISOString(),
       source: 'admin',
     })
@@ -96,10 +96,10 @@ function generateAppointments(
 
 // Funciones unificadas de capacidad por profesional
 function getUsedCapacity(config: TurnosConfig, profId: string, dateKey: string, hour: string): number {
-  if (!config.enableComplexity) return 0
+  if (!config.enableCapacityPerHour) return 0
   return config.appointments
     .filter(a => a.professionalId === profId && a.startTime.startsWith(dateKey) && a.startTime.substring(11, 16) === hour)
-    .reduce((total, appt) => total + (appt.complexity || 1), 0)
+    .reduce((total, appt) => total + (appt.capacityPerHour || 1), 0)
 }
 
 function getMaxCapacity(config: TurnosConfig, profId: string): number {
@@ -107,15 +107,15 @@ function getMaxCapacity(config: TurnosConfig, profId: string): number {
   return prof?.maxCapacityPerHour ?? 4
 }
 
-function canAddAppointment(config: TurnosConfig, profId: string, dateKey: string, hour: string, complexity: number): boolean {
-  if (!config.enableComplexity) return true
+function canAddAppointment(config: TurnosConfig, profId: string, dateKey: string, hour: string, capacityPerHour: number): boolean {
+  if (!config.enableCapacityPerHour) return true
   const usedCapacity = getUsedCapacity(config, profId, dateKey, hour)
   const maxCapacity = getMaxCapacity(config, profId)
-  return (usedCapacity + complexity) <= maxCapacity
+  return (usedCapacity + capacityPerHour) <= maxCapacity
 }
 
-function getComplexityOptions(config: TurnosConfig, profId: string): number[] {
-  if (!config.enableComplexity) return []
+function getCapacityPerHourOptions(config: TurnosConfig, profId: string): number[] {
+  if (!config.enableCapacityPerHour) return []
   const maxCapacity = getMaxCapacity(config, profId)
   return Array.from({ length: maxCapacity }, (_, i) => i + 1)
 }
@@ -124,7 +124,7 @@ export default function TurnosPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('calendar')
   const [monthView, setMonthView] = useState(new Date())
-  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [], enableComplexity: false })
+  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [], enableCapacityPerHour: false })
   const [generalConfig, setGeneralConfig] = useState<any>({})
   const [weekStart, setWeekStart] = useState(new Date())
 
@@ -288,15 +288,15 @@ export default function TurnosPage() {
       {/* Configuración General */}
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <p style={{ color: 'white', fontWeight: 600, fontSize: 14, margin: '0 0 4px' }}>Sistema de complejidad/slots</p>
-          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Permite servicios que ocupan múltiples turnos simultáneamente</p>
+          <p style={{ color: 'white', fontWeight: 600, fontSize: 14, margin: '0 0 4px' }}>Capacity Per Hour System</p>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Manage how much of each professional's hourly capacity each appointment consumes</p>
         </div>
         <button
-          onClick={() => saveConfig({ ...config, enableComplexity: !config.enableComplexity })}
+          onClick={() => saveConfig({ ...config, enableCapacityPerHour: !config.enableCapacityPerHour })}
           style={{
-            background: config.enableComplexity ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${config.enableComplexity ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
-            color: config.enableComplexity ? '#86efac' : 'rgba(255,255,255,0.5)',
+            background: config.enableCapacityPerHour ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${config.enableCapacityPerHour ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+            color: config.enableCapacityPerHour ? '#86efac' : 'rgba(255,255,255,0.5)',
             borderRadius: 8,
             padding: '8px 16px',
             fontWeight: 600,
@@ -305,7 +305,7 @@ export default function TurnosPage() {
             transition: 'all 0.2s',
           }}
         >
-          {config.enableComplexity ? '✓ Activado' : '○ Desactivado'}
+          {config.enableCapacityPerHour ? '✓ Activado' : '○ Desactivado'}
         </button>
 
         <button
@@ -843,7 +843,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
   const [selectedDayForView, setSelectedDayForView] = useState<Date | null>(null)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedProfId, setSelectedProfId] = useState<string>('')
-  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, complexity: 1, healthInsurance: '', membershipNumber: '' })
+  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, healthInsurance: '', membershipNumber: '' })
 
   // Verificar y enviar recordatorios automáticamente
   useEffect(() => {
@@ -862,14 +862,14 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
   const openModal = (profId: string, date: Date, time: string) => {
     setEditingAppt(null)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, healthInsurance: '', membershipNumber: '' })
     setModalOpen(true)
   }
 
   const editAppt = (appt: Appointment) => {
     const [startDate, startTime] = appt.startTime.split('T')
     setEditingAppt(appt)
-    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, complexity: appt.complexity || 1, healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
+    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, capacityPerHour: appt.capacityPerHour || 1, healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
     setModalOpen(true)
   }
 
@@ -880,7 +880,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     if (!service) return
 
     // Validar capacidad si está habilitada la complejidad
-    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.complexity || 1)) {
+    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
       const prof = config.professionals.find(p => p.id === form.profId)
       const maxCap = getMaxCapacity(config, form.profId)
       alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
@@ -891,7 +891,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
     if (editingAppt) {
       const updated = config.appointments.map(a => a.id === editingAppt.id
-        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, complexity: form.complexity ? Number(form.complexity) : 1 }
+        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1 }
         : a
       )
       saveConfig({ ...config, appointments: updated })
@@ -927,7 +927,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
     console.log('Closing modal and resetting form')
     setModalOpen(false)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, complexity: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, healthInsurance: '', membershipNumber: '' })
   }
 
   const deleteAppt = (id: string) => {
@@ -1066,11 +1066,11 @@ const MAX_CAPACITY_UNIFIED = 10
                                 {a.clientName}
                               </span>
                               <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {config.services.find(s => s.id === a.serviceId)?.name || 'N/A'}
+                                {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}
                               </span>
-                              {config.enableComplexity && (
+                              {config.enableCapacityPerHour && (
                                 <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>
-                                  C{a.complexity || 1}
+                                  {a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}
                                 </span>
                               )}
                             </div>)
@@ -1227,16 +1227,16 @@ const MAX_CAPACITY_UNIFIED = 10
               )}
 
               {/* Complejidad */}
-              {config.enableComplexity && (
+              {config.enableCapacityPerHour && (
                 <div>
-                  <label style={labelStyle}>Complejidad (slots)</label>
+                  <label style={labelStyle}>Capacity Per Hour</label>
                   {!form.profId ? (
                     <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Selecciona profesional primero</p>
                   ) : (
-                    <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                      <option value="">-- Selecciona complejidad --</option>
-                      {getComplexityOptions(config, form.profId).map(c => (
-                        <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)} slots</option>
+                    <select value={form.capacityPerHour} onChange={e => setForm({ ...form, capacityPerHour: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                      <option value="">-- Select capacity --</option>
+                      {getCapacityPerHourOptions(config, form.profId).map(c => (
+                        <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)}</option>
                       ))}
                     </select>
                   )}
@@ -1328,11 +1328,11 @@ const MAX_CAPACITY_UNIFIED = 10
                         >
                           <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0 }}>{a.clientName}</p>
                           <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '3px 0 0' }}>
-                            {config.services.find(s => s.id === a.serviceId)?.name} • {a.startTime.substring(11, 16)}
+                            {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}
                           </p>
-                          {config.enableComplexity && (
+                          {config.enableCapacityPerHour && (
                             <p style={{ color: '#fbbf24', fontSize: 10, margin: '2px 0 0', fontWeight: 600 }}>
-                              C{a.complexity || 1}
+                              {a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}
                             </p>
                           )}
                         </div>
@@ -1360,7 +1360,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
 
   const year = monthView.getFullYear()
   const month = monthView.getMonth()
@@ -1381,7 +1381,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
     setEditingAppt(null)
     setOpenModal(true)
   }
@@ -1393,7 +1393,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
     if (!service) return
 
     // Validar capacidad si está habilitada la complejidad
-    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.complexity || 1)) {
+    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
       const prof = config.professionals.find(p => p.id === form.profId)
       const maxCap = getMaxCapacity(config, form.profId)
       alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
@@ -1527,8 +1527,8 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           <strong style={{ fontSize: 8, lineHeight: 1 }}>{a.clientName}</strong>
-                          <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{a.startTime.substring(11, 16)}</span>
-                          {config.enableComplexity && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>C{a.complexity || 1}</span>}
+                          <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}</span>
+                          {config.enableCapacityPerHour && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                         </div>
                       </div>
                     )
@@ -1582,16 +1582,16 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </select>
             </div>
 
-            {config.enableComplexity && (
+            {config.enableCapacityPerHour && (
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complejidad (slots)</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capacity Per Hour</label>
                 {!form.profId ? (
                   <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Selecciona profesional primero</p>
                 ) : (
-                  <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                    <option value="">-- Selecciona complejidad --</option>
-                    {getComplexityOptions(config, form.profId).map(c => (
-                      <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)} slots</option>
+                  <select value={form.capacityPerHour} onChange={e => setForm({ ...form, capacityPerHour: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value="">-- Select capacity --</option>
+                    {getCapacityPerHourOptions(config, form.profId).map(c => (
+                      <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)}</option>
                     ))}
                   </select>
                 )}
@@ -1694,7 +1694,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const [openModal, setOpenModal] = useState(false)
   const [monthView, setMonthView] = useState(new Date())
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
 
   const prof = config.professionals.find(p => p.id === professionalId)
   const year = monthView.getFullYear()
@@ -1716,7 +1716,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', complexity: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
     setEditingAppt(null)
     setOpenModal(true)
   }
@@ -1727,7 +1727,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
 
-    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.complexity || 1)) {
+    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
       const prof = config.professionals.find(p => p.id === form.profId)
       const maxCap = getMaxCapacity(config, form.profId)
       alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
@@ -1866,8 +1866,8 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                     >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <strong style={{ fontSize: 8, lineHeight: 1 }}>{a.clientName}</strong>
-                        <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{a.startTime.substring(11, 16)}</span>
-                        {config.enableComplexity && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>C{a.complexity || 1}</span>}
+                        <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1 }}>{config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Private'}</span>
+                        {config.enableCapacityPerHour && <span style={{ fontSize: 7, color: '#fbbf24', fontWeight: 600, lineHeight: 1 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                       </div>
                     </div>
                   ))}
@@ -1917,16 +1917,16 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </select>
             </div>
 
-            {config.enableComplexity && (
+            {config.enableCapacityPerHour && (
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Complejidad (slots)</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capacity Per Hour</label>
                 {!form.profId ? (
                   <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0 }}>Selecciona profesional primero</p>
                 ) : (
-                  <select value={form.complexity} onChange={e => setForm({ ...form, complexity: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                    <option value="">-- Selecciona complejidad --</option>
-                    {getComplexityOptions(config, form.profId).map(c => (
-                      <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)} slots</option>
+                  <select value={form.capacityPerHour} onChange={e => setForm({ ...form, capacityPerHour: Number(e.target.value) })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value="">-- Select capacity --</option>
+                    {getCapacityPerHourOptions(config, form.profId).map(c => (
+                      <option key={c} value={c}>{c}/{getMaxCapacity(config, form.profId)}</option>
                     ))}
                   </select>
                 )}
