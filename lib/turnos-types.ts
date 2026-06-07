@@ -2,6 +2,7 @@
 
 export interface Professional {
   id: string
+  user_id?: string // RLS: for Supabase multi-tenancy
   name: string
   specialty: string
   color: string
@@ -13,6 +14,7 @@ export interface Professional {
 
 export interface Service {
   id: string
+  user_id?: string // RLS: for Supabase multi-tenancy
   name: string
   durationMinutes: number
   price: number
