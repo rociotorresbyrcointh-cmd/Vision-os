@@ -216,47 +216,139 @@ export async function countAppointmentsByService(userId: string, svcId: string):
 }
 
 // ─── TURNOS (APPOINTMENTS) ───
+function mapAppointmentToDb(apt: any) {
+  return {
+    id: apt.id,
+    user_id: apt.user_id,
+    professional_id: apt.professionalId,
+    service_id: apt.serviceId,
+    client_name: apt.clientName,
+    client_whatsapp: apt.clientWhatsApp || null,
+    client_email: apt.clientEmail || null,
+    start_time: apt.startTime,
+    end_time: apt.endTime,
+    status: apt.status || 'confirmed',
+    notes: apt.notes || null,
+  }
+}
+
+function mapAppointmentFromDb(apt: any) {
+  return {
+    id: apt.id,
+    user_id: apt.user_id,
+    clientName: apt.client_name,
+    clientWhatsApp: apt.client_whatsapp || '',
+    clientEmail: apt.client_email || '',
+    professionalId: apt.professional_id,
+    serviceId: apt.service_id,
+    startTime: apt.start_time,
+    endTime: apt.end_time,
+    status: apt.status,
+    notes: apt.notes || '',
+    capacityPerHour: 1, // Default: appointments consume 1 unit of capacity
+    patientLabel: '',
+    healthInsurance: '',
+    membershipNumber: '',
+    createdAt: apt.created_at,
+    source: 'admin' as const,
+  }
+}
+
 export async function getAppointments(userId: string) {
-  const { data } = await supabase
+  console.log('🔍 [SUPABASE] getAppointments called with userId:', userId)
+
+  const { data, error } = await supabase
     .from('appointments')
     .select('*')
     .eq('user_id', userId)
-  return data || []
+
+  console.log('🔍 [SUPABASE] Appointments query result:', { recordCount: data?.length || 0, error })
+
+  if (error) {
+    console.error('❌ [SUPABASE] Query error:', error.message, error.code)
+    return []
+  }
+
+  return (data || []).map(mapAppointmentFromDb)
 }
 
 export async function addAppointment(userId: string, appt: any) {
-  const { data } = await supabase
+  console.log('🔧 [SUPABASE] addAppointment called with:', { userId, appt })
+  const recordToInsert = mapAppointmentToDb({ ...appt, user_id: userId })
+  console.log('🔧 [SUPABASE] Inserting appointment with mapped fields:', recordToInsert)
+
+  const { data, error } = await supabase
     .from('appointments')
-    .insert([{ ...appt, user_id: userId }])
+    .insert([recordToInsert])
     .select()
-  return data?.[0] || null
+
+  console.log('🔧 [SUPABASE] Insert response:', { data, error })
+
+  if (error) {
+    console.error('❌ [SUPABASE] Insert error:', error.message, error.code, error.details)
+    return null
+  }
+
+  return data?.[0] ? mapAppointmentFromDb(data[0]) : null
 }
 
 export async function addMultipleAppointments(userId: string, appts: any[]) {
-  const withUserId = appts.map(a => ({ ...a, user_id: userId }))
-  const { data } = await supabase
+  console.log('🔧 [SUPABASE] addMultipleAppointments called with:', { userId, count: appts.length })
+
+  const recordsToInsert = appts.map(a => mapAppointmentToDb({ ...a, user_id: userId }))
+  console.log('🔧 [SUPABASE] Inserting', recordsToInsert.length, 'appointments')
+
+  const { data, error } = await supabase
     .from('appointments')
-    .insert(withUserId)
+    .insert(recordsToInsert)
     .select()
-  return data || []
+
+  console.log('🔧 [SUPABASE] Batch insert response:', { count: data?.length || 0, error })
+
+  if (error) {
+    console.error('❌ [SUPABASE] Batch insert error:', error.message, error.code, error.details)
+    return []
+  }
+
+  return (data || []).map(mapAppointmentFromDb)
 }
 
 export async function updateAppointment(userId: string, apptId: string, updates: any) {
-  const { data } = await supabase
+  console.log('🔧 [SUPABASE] updateAppointment called with:', { userId, apptId, updates })
+  const mappedUpdates = mapAppointmentToDb(updates)
+  console.log('🔧 [SUPABASE] Updating with mapped fields:', mappedUpdates)
+
+  const { data, error } = await supabase
     .from('appointments')
-    .update(updates)
+    .update(mappedUpdates)
     .eq('id', apptId)
     .eq('user_id', userId)
     .select()
-  return data?.[0] || null
+
+  if (error) {
+    console.error('❌ [SUPABASE] Update error:', error.message, error.code)
+    return null
+  }
+
+  return data?.[0] ? mapAppointmentFromDb(data[0]) : null
 }
 
 export async function deleteAppointment(userId: string, apptId: string) {
-  await supabase
+  console.log('🔧 [SUPABASE] deleteAppointment called with:', { userId, apptId })
+
+  const { error } = await supabase
     .from('appointments')
     .delete()
     .eq('id', apptId)
     .eq('user_id', userId)
+
+  if (error) {
+    console.error('❌ [SUPABASE] Delete error:', error.message, error.code)
+    return false
+  }
+
+  console.log('✅ [SUPABASE] Appointment deleted successfully')
+  return true
 }
 
 // ─── CLIENTES ───
