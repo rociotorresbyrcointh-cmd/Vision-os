@@ -7,7 +7,7 @@ import { Professional, Service, Appointment, TurnosConfig, PROFESSIONAL_COLORS, 
 import { sendWhatsAppFromClient } from '@/lib/whatsapp-client'
 import { getPendingReminders, sendPendingReminders } from '@/lib/reminders-service'
 import { syncTurnosWithServer } from '@/lib/sync-service'
-import { addMultipleAppointments, updateAppointment, deleteAppointment } from '@/lib/supabase-operations'
+import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment } from '@/lib/supabase-operations'
 import { useTurnosSync } from '@/lib/use-turnos-sync'
 
 const inputStyle: React.CSSProperties = {
@@ -146,10 +146,54 @@ export default function TurnosPage() {
 
   useEffect(() => {
     if (!user) return
-    const storedTurnos = localStorage.getItem(`bos_turnos_${user.id}`)
-    if (storedTurnos) setConfig(JSON.parse(storedTurnos))
-    const storedConfig = localStorage.getItem(`bos_config_${user.id}`)
-    if (storedConfig) setGeneralConfig(JSON.parse(storedConfig))
+
+    const loadData = async () => {
+      try {
+        // Load from Supabase (source of truth)
+        const [professionals, services, appointments, businessConfig] = await Promise.all([
+          getProfessionals(user.id),
+          getServices(user.id),
+          getAppointments(user.id),
+          getBusinessConfig(user.id),
+        ])
+
+        // Merge with localStorage data as fallback
+        const storedTurnos = localStorage.getItem(`bos_turnos_${user.id}`)
+        const localData = storedTurnos ? JSON.parse(storedTurnos) : null
+
+        // Use Supabase data as source of truth
+        const mergedConfig: TurnosConfig = {
+          professionals: professionals && professionals.length > 0 ? professionals : localData?.professionals || [],
+          services: services && services.length > 0 ? services : localData?.services || [],
+          appointments: appointments && appointments.length > 0 ? appointments : localData?.appointments || [],
+          blockedTimes: localData?.blockedTimes || [],
+          enableCapacityPerHour: localData?.enableCapacityPerHour ?? false,
+          enableInsuranceInfo: localData?.enableInsuranceInfo ?? false,
+          enableWeeklyCalendar: localData?.enableWeeklyCalendar ?? false,
+          enableProfessionalCalendars: localData?.enableProfessionalCalendars ?? false,
+        }
+
+        setConfig(mergedConfig)
+
+        // Also update localStorage with Supabase data (for offline access)
+        localStorage.setItem(`bos_turnos_${user.id}`, JSON.stringify(mergedConfig))
+
+        // Load business settings
+        const storedGeneralConfig = localStorage.getItem(`bos_config_${user.id}`)
+        const generalConfigData = businessConfig || (storedGeneralConfig ? JSON.parse(storedGeneralConfig) : {})
+        setGeneralConfig(generalConfigData)
+        localStorage.setItem(`bos_config_${user.id}`, JSON.stringify(generalConfigData))
+      } catch (error) {
+        // Fallback: load from localStorage only if Supabase fails
+        console.error('Failed to load from Supabase, using localStorage fallback:', error)
+        const storedTurnos = localStorage.getItem(`bos_turnos_${user.id}`)
+        if (storedTurnos) setConfig(JSON.parse(storedTurnos))
+        const storedConfig = localStorage.getItem(`bos_config_${user.id}`)
+        if (storedConfig) setGeneralConfig(JSON.parse(storedConfig))
+      }
+    }
+
+    loadData()
   }, [user])
 
   // Sincronizar a Supabase automáticamente
