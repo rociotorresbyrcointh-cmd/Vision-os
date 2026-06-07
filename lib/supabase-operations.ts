@@ -101,38 +101,119 @@ export async function deleteProfessional(userId: string, profId: string) {
 }
 
 // ─── SERVICIOS ───
+function mapServiceToDb(svc: any) {
+  return {
+    id: svc.id,
+    user_id: svc.user_id,
+    name: svc.name,
+    duration_minutes: svc.durationMinutes,
+    price: svc.price,
+    description: svc.description || null,
+  }
+}
+
+function mapServiceFromDb(svc: any) {
+  return {
+    id: svc.id,
+    user_id: svc.user_id,
+    name: svc.name,
+    durationMinutes: svc.duration_minutes,
+    price: svc.price,
+    description: svc.description || '',
+  }
+}
+
 export async function getServices(userId: string) {
-  const { data } = await supabase
+  console.log('🔍 [SUPABASE] getServices called with userId:', userId)
+
+  const { data, error } = await supabase
     .from('services')
     .select('*')
     .eq('user_id', userId)
-  return data || []
+
+  console.log('🔍 [SUPABASE] Services query result:', { recordCount: data?.length || 0, error })
+
+  if (error) {
+    console.error('❌ [SUPABASE] Query error:', error.message, error.code)
+    return []
+  }
+
+  return (data || []).map(mapServiceFromDb)
 }
 
 export async function addService(userId: string, svc: any) {
-  const { data } = await supabase
+  console.log('🔧 [SUPABASE] addService called with:', { userId, svc })
+  const recordToInsert = mapServiceToDb({ ...svc, user_id: userId })
+  console.log('🔧 [SUPABASE] Inserting service with mapped fields:', recordToInsert)
+
+  const { data, error } = await supabase
     .from('services')
-    .insert([{ ...svc, user_id: userId }])
+    .insert([recordToInsert])
     .select()
-  return data?.[0] || null
+
+  console.log('🔧 [SUPABASE] Insert response:', { data, error })
+
+  if (error) {
+    console.error('❌ [SUPABASE] Insert error:', error.message, error.code, error.details)
+    return null
+  }
+
+  return data?.[0] ? mapServiceFromDb(data[0]) : null
 }
 
 export async function updateService(userId: string, svcId: string, updates: any) {
-  const { data } = await supabase
+  console.log('🔧 [SUPABASE] updateService called with:', { userId, svcId, updates })
+  const mappedUpdates = mapServiceToDb(updates)
+  console.log('🔧 [SUPABASE] Updating with mapped fields:', mappedUpdates)
+
+  const { data, error } = await supabase
     .from('services')
-    .update(updates)
+    .update(mappedUpdates)
     .eq('id', svcId)
     .eq('user_id', userId)
     .select()
-  return data?.[0] || null
+
+  if (error) {
+    console.error('❌ [SUPABASE] Update error:', error.message, error.code)
+    return null
+  }
+
+  return data?.[0] ? mapServiceFromDb(data[0]) : null
 }
 
 export async function deleteService(userId: string, svcId: string) {
-  await supabase
+  console.log('🔧 [SUPABASE] deleteService called with:', { userId, svcId })
+
+  const { error } = await supabase
     .from('services')
     .delete()
     .eq('id', svcId)
     .eq('user_id', userId)
+
+  if (error) {
+    console.error('❌ [SUPABASE] Delete error:', error.message, error.code)
+    return false
+  }
+
+  console.log('✅ [SUPABASE] Service deleted successfully')
+  return true
+}
+
+export async function countAppointmentsByService(userId: string, svcId: string): Promise<number> {
+  console.log('🔍 [SUPABASE] countAppointmentsByService called for:', svcId)
+
+  const { count, error } = await supabase
+    .from('appointments')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('service_id', svcId)
+
+  if (error) {
+    console.error('❌ [SUPABASE] Count error:', error.message)
+    return 0
+  }
+
+  return count || 0
 }
 
 // ─── TURNOS (APPOINTMENTS) ───

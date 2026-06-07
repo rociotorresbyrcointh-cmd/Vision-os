@@ -7,7 +7,7 @@ import { Professional, Service, Appointment, TurnosConfig, PROFESSIONAL_COLORS, 
 import { sendWhatsAppFromClient } from '@/lib/whatsapp-client'
 import { getPendingReminders, sendPendingReminders } from '@/lib/reminders-service'
 import { syncTurnosWithServer } from '@/lib/sync-service'
-import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional } from '@/lib/supabase-operations'
+import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional, addService as addServiceSB, updateService as updateServiceSB, deleteService as deleteServiceSB, countAppointmentsByService } from '@/lib/supabase-operations'
 import { useTurnosSync } from '@/lib/use-turnos-sync'
 
 const inputStyle: React.CSSProperties = {
@@ -346,22 +346,71 @@ export default function TurnosPage() {
     }
   }
 
-  const addService = () => {
-    const id = Date.now().toString()
-    const newSvc: Service = { id, ...svcForm }
-    saveConfig({ ...config, services: [...config.services, newSvc] })
-    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
+  const addService = async () => {
+    try {
+      const id = crypto.randomUUID()
+      const newSvc: Service = { id, user_id: userId, ...svcForm }
+
+      console.log('📝 Creating service:', newSvc)
+      const result = await addServiceSB(userId, newSvc)
+
+      if (!result) {
+        alert('Error al crear servicio. Intenta nuevamente.')
+        return
+      }
+
+      setConfig({ ...config, services: [...config.services, result] })
+      setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
+      console.log('✅ Service created successfully')
+    } catch (error) {
+      console.error('❌ Error creating service:', error)
+      alert('Error al crear servicio')
+    }
   }
 
-  const updateService = (id: string) => {
-    const updated = config.services.map(s => s.id === id ? { ...s, ...svcForm } : s)
-    saveConfig({ ...config, services: updated })
-    setEditingSvc(null)
-    setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
+  const updateService = async (id: string) => {
+    try {
+      console.log('📝 Updating service:', id)
+      const result = await updateServiceSB(userId, id, svcForm)
+
+      if (!result) {
+        alert('Error al actualizar servicio. Intenta nuevamente.')
+        return
+      }
+
+      setConfig({ ...config, services: config.services.map(s => s.id === id ? result : s) })
+      setEditingSvc(null)
+      setSvcForm({ name: '', durationMinutes: 60, price: 0, description: '' })
+      console.log('✅ Service updated successfully')
+    } catch (error) {
+      console.error('❌ Error updating service:', error)
+      alert('Error al actualizar servicio')
+    }
   }
 
-  const deleteService = (id: string) => {
-    saveConfig({ ...config, services: config.services.filter(s => s.id !== id) })
+  const deleteService = async (id: string) => {
+    try {
+      console.log('🗑️ Attempting to delete service:', id)
+      const appointmentCount = await countAppointmentsByService(userId, id)
+
+      if (appointmentCount > 0) {
+        alert(`No se puede eliminar este servicio porque tiene ${appointmentCount} turno${appointmentCount !== 1 ? 's' : ''} asociado${appointmentCount !== 1 ? 's' : ''}. Primero debes eliminar o reasignar esos turnos.`)
+        return
+      }
+
+      const success = await deleteServiceSB(userId, id)
+
+      if (!success) {
+        alert('Error al eliminar servicio. Intenta nuevamente.')
+        return
+      }
+
+      setConfig({ ...config, services: config.services.filter(s => s.id !== id) })
+      console.log('✅ Service deleted successfully')
+    } catch (error) {
+      console.error('❌ Error deleting service:', error)
+      alert('Error al eliminar servicio')
+    }
   }
 
   const startEditProf = (prof: Professional) => {
