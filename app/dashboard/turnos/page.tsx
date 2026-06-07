@@ -258,7 +258,7 @@ export default function TurnosPage() {
       const id = Date.now().toString()
       const newProf: Professional = { id, ...profForm }
 
-      console.log('📝 [UI] Creating professional:', { id, name: newProf.name, user.id: user.id })
+      console.log('📝 [UI] Creating professional:', { id, name: newProf.name, userId: user.id })
 
       const result = await supabaseAddProfessional(user.id, newProf)
 
@@ -347,6 +347,11 @@ export default function TurnosPage() {
   }
 
   const addService = async () => {
+    if (!user) {
+      console.error('❌ [UI] No user logged in')
+      return
+    }
+
     try {
       const id = crypto.randomUUID()
       const newSvc: Service = { id, user_id: user.id, ...svcForm }
@@ -369,6 +374,11 @@ export default function TurnosPage() {
   }
 
   const updateService = async (id: string) => {
+    if (!user) {
+      console.error('❌ [UI] No user logged in')
+      return
+    }
+
     try {
       console.log('📝 Updating service:', id)
       const result = await updateServiceSB(user.id, id, svcForm)
@@ -389,6 +399,11 @@ export default function TurnosPage() {
   }
 
   const deleteService = async (id: string) => {
+    if (!user) {
+      console.error('❌ [UI] No user logged in')
+      return
+    }
+
     try {
       console.log('🗑️ Attempting to delete service:', id)
       const appointmentCount = await countAppointmentsByService(user.id, id)
