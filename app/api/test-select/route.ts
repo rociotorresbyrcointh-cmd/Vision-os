@@ -27,12 +27,19 @@ export async function GET(req: NextRequest) {
     result.columns = Object.keys(data[0])
   }
 
-  // Also try to query info schema (might fail due to RLS)
-  const { data: tableInfo, error: infoError } = await supabase
-    .from('information_schema.columns')
-    .select('column_name')
-    .eq('table_name', 'professionals')
-    .catch(() => ({ data: null, error: 'Not accessible' }))
+  // Try to query info schema (might fail due to RLS)
+  let tableInfo = null
+  let infoError = null
+  try {
+    const response = await supabase
+      .from('information_schema.columns')
+      .select('column_name')
+      .eq('table_name', 'professionals')
+    tableInfo = response.data
+    infoError = response.error
+  } catch (e) {
+    infoError = 'Not accessible'
+  }
 
   result.tableInfo = tableInfo
   result.tableInfoError = infoError
