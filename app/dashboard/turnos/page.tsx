@@ -7,7 +7,7 @@ import { Professional, Service, Appointment, TurnosConfig, PROFESSIONAL_COLORS, 
 import { sendWhatsAppFromClient } from '@/lib/whatsapp-client'
 import { getPendingReminders, sendPendingReminders } from '@/lib/reminders-service'
 import { syncTurnosWithServer } from '@/lib/sync-service'
-import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional, addService as addServiceSB, updateService as updateServiceSB, deleteService as deleteServiceSB, countAppointmentsByService } from '@/lib/supabase-operations'
+import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional, addService as addServiceSB, updateService as updateServiceSB, deleteService as deleteServiceSB, countAppointmentsByService, addAppointment as supabaseAddAppointment, addMultipleAppointments as supabaseAddMultipleAppointments, updateAppointment as supabaseUpdateAppointment, deleteAppointment as supabaseDeleteAppointment } from '@/lib/supabase-operations'
 import { useTurnosSync } from '@/lib/use-turnos-sync'
 
 const inputStyle: React.CSSProperties = {
@@ -1042,7 +1042,7 @@ export default function TurnosPage() {
               </div>
             </div>
           ) : (
-            <CalendarView config={config} saveConfig={saveConfig} generalConfig={generalConfig} />
+            <CalendarView config={config} saveConfig={saveConfig} generalConfig={generalConfig} user={user} />
           )}
         </div>
       )}
@@ -1060,7 +1060,7 @@ export default function TurnosPage() {
               </div>
             </div>
           ) : (
-            <MonthCalendarView config={config} saveConfig={saveConfig} monthView={monthView} setMonthView={setMonthView} generalConfig={generalConfig} />
+            <MonthCalendarView config={config} saveConfig={saveConfig} monthView={monthView} setMonthView={setMonthView} generalConfig={generalConfig} user={user} />
           )}
         </div>
       )}
@@ -1084,6 +1084,7 @@ export default function TurnosPage() {
               saveConfig={saveConfig}
               generalConfig={generalConfig}
               professionalId={tab.substring(5)}
+              user={user}
             />
           )}
         </div>
@@ -1094,7 +1095,7 @@ export default function TurnosPage() {
 
 // ─────────────────────────────────────────────────────────────────
 
-function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; generalConfig: any }) {
+function CalendarView({ config, saveConfig, generalConfig, user }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; generalConfig: any; user: any }) {
   const [weekStart, setWeekStart] = useState(new Date())
   const [modalOpen, setModalOpen] = useState(false)
   const [dayViewOpen, setDayViewOpen] = useState(false)
@@ -1131,7 +1132,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     setModalOpen(true)
   }
 
-  const saveAppt = () => {
+  const saveAppt = async () => {
     if (!form.clientName.trim() || !form.serviceId || !form.profId || !form.date || !form.startTime) return
 
     const service = config.services.find(s => s.id === form.serviceId)
@@ -1150,13 +1151,42 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
     console.log('🔍 DEBUG - Created appointment:', JSON.stringify(appointments[0], null, 2))
 
     if (editingAppt) {
-      const updated = config.appointments.map(a => a.id === editingAppt.id
-        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1, patientLabel: form.patientLabel, healthInsurance: form.healthInsurance, membershipNumber: form.membershipNumber }
-        : a
-      )
-      saveConfig({ ...config, appointments: updated })
+      // Update existing appointment in Supabase first
+      const updates = { clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1, patientLabel: form.patientLabel, healthInsurance: form.healthInsurance, membershipNumber: form.membershipNumber }
+
+      try {
+        const result = await supabaseUpdateAppointment(user!.id, editingAppt.id, updates)
+        if (!result) {
+          alert('Error al actualizar el turno en Supabase. Intenta nuevamente.')
+          return
+        }
+
+        // Update local state only after Supabase succeeds
+        const updated = config.appointments.map(a => a.id === editingAppt.id ? { ...a, ...updates } : a)
+        saveConfig({ ...config, appointments: updated })
+        console.log('✅ Appointment updated in Supabase and local state')
+      } catch (error) {
+        console.error('❌ Error updating appointment:', error)
+        alert('Error al actualizar el turno. Intenta nuevamente.')
+        return
+      }
     } else {
-      saveConfig({ ...config, appointments: [...config.appointments, ...appointments] })
+      // Add new appointments to Supabase first
+      try {
+        const result = await supabaseAddMultipleAppointments(user!.id, appointments)
+        if (!result || result.length === 0) {
+          alert('Error al crear el turno en Supabase. Intenta nuevamente.')
+          return
+        }
+
+        // Update local state only after Supabase succeeds
+        saveConfig({ ...config, appointments: [...config.appointments, ...result] })
+        console.log('✅ Appointments created in Supabase and local state')
+      } catch (error) {
+        console.error('❌ Error creating appointments:', error)
+        alert('Error al crear el turno. Intenta nuevamente.')
+        return
+      }
 
       // Enviar mensaje de WhatsApp de confirmación
       if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
@@ -1190,10 +1220,23 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
     setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
   }
 
-  const deleteAppt = (id: string) => {
+  const deleteAppt = async (id: string) => {
     if (confirm('¿Eliminár este turno?')) {
-      saveConfig({ ...config, appointments: config.appointments.filter(a => a.id !== id) })
-      setModalOpen(false)
+      try {
+        const success = await supabaseDeleteAppointment(user!.id, id)
+        if (!success) {
+          alert('Error al eliminar el turno en Supabase. Intenta nuevamente.')
+          return
+        }
+
+        // Update local state only after Supabase succeeds
+        saveConfig({ ...config, appointments: config.appointments.filter(a => a.id !== id) })
+        setModalOpen(false)
+        console.log('✅ Appointment deleted from Supabase and local state')
+      } catch (error) {
+        console.error('❌ Error deleting appointment:', error)
+        alert('Error al eliminar el turno. Intenta nuevamente.')
+      }
     }
   }
 
@@ -1627,7 +1670,7 @@ const MAX_CAPACITY_UNIFIED = 10
   )
 }
 
-function MonthCalendarView({ config, saveConfig, monthView, setMonthView, generalConfig }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; monthView: Date; setMonthView: (d: Date) => void; generalConfig: any }) {
+function MonthCalendarView({ config, saveConfig, monthView, setMonthView, generalConfig, user }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; monthView: Date; setMonthView: (d: Date) => void; generalConfig: any; user: any }) {
   const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
@@ -1657,7 +1700,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
     setOpenModal(true)
   }
 
-  const saveTurno = () => {
+  const saveTurno = async () => {
     if (!form.clientName || !form.profId || !form.date || !form.startTime) return
 
     const service = config.services.find(s => s.id === form.serviceId)
@@ -1673,7 +1716,22 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
 
     const appointments = generateAppointments(form, config, service)
 
-    saveConfig({ ...config, appointments: [...config.appointments, ...appointments] })
+    // Add appointments to Supabase first
+    try {
+      const result = await supabaseAddMultipleAppointments(user!.id, appointments)
+      if (!result || result.length === 0) {
+        alert('Error al crear el turno en Supabase. Intenta nuevamente.')
+        return
+      }
+
+      // Update local state only after Supabase succeeds
+      saveConfig({ ...config, appointments: [...config.appointments, ...result] })
+      console.log('✅ Appointments created in Supabase and local state')
+    } catch (error) {
+      console.error('❌ Error creating appointments:', error)
+      alert('Error al crear el turno. Intenta nuevamente.')
+      return
+    }
 
     // Enviar mensaje de WhatsApp de confirmación
     if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
@@ -1974,7 +2032,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 }
 
 // Professional Calendar View - Same form as Full Calendar, filtered by professional
-function ProfessionalCalendarView({ config, saveConfig, generalConfig, professionalId }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; generalConfig: any; professionalId: string }) {
+function ProfessionalCalendarView({ config, saveConfig, generalConfig, professionalId, user }: { config: TurnosConfig; saveConfig: (cfg: TurnosConfig) => void; generalConfig: any; professionalId: string; user: any }) {
   const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [monthView, setMonthView] = useState(new Date())
@@ -2006,7 +2064,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
     setOpenModal(true)
   }
 
-  const saveTurno = () => {
+  const saveTurno = async () => {
     if (!form.clientName || !form.profId || !form.date || !form.startTime) return
 
     const service = config.services.find(s => s.id === form.serviceId)
@@ -2021,7 +2079,22 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
 
     const appointments = generateAppointments(form, config, service)
 
-    saveConfig({ ...config, appointments: [...config.appointments, ...appointments] })
+    // Add appointments to Supabase first
+    try {
+      const result = await supabaseAddMultipleAppointments(user!.id, appointments)
+      if (!result || result.length === 0) {
+        alert('Error al crear el turno en Supabase. Intenta nuevamente.')
+        return
+      }
+
+      // Update local state only after Supabase succeeds
+      saveConfig({ ...config, appointments: [...config.appointments, ...result] })
+      console.log('✅ Appointments created in Supabase and local state')
+    } catch (error) {
+      console.error('❌ Error creating appointments:', error)
+      alert('Error al crear el turno. Intenta nuevamente.')
+      return
+    }
 
     if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
       const professional = config.professionals.find(p => p.id === form.profId)
