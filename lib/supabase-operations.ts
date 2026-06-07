@@ -108,7 +108,6 @@ function mapServiceToDb(svc: any) {
     name: svc.name,
     duration_minutes: svc.durationMinutes,
     price: svc.price,
-    description: svc.description || null,
   }
 }
 
@@ -119,7 +118,7 @@ function mapServiceFromDb(svc: any) {
     name: svc.name,
     durationMinutes: svc.duration_minutes,
     price: svc.price,
-    description: svc.description || '',
+    description: '', // description field doesn't exist in DB
   }
 }
 
