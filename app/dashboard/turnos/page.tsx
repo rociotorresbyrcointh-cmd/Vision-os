@@ -897,7 +897,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
     if (editingAppt) {
       const updated = config.appointments.map(a => a.id === editingAppt.id
-        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1 }
+        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1, healthInsurance: form.healthInsurance, membershipNumber: form.membershipNumber }
         : a
       )
       saveConfig({ ...config, appointments: updated })
