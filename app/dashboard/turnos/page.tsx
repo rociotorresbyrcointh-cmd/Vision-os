@@ -124,7 +124,7 @@ export default function TurnosPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('calendar')
   const [monthView, setMonthView] = useState(new Date())
-  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [], enableCapacityPerHour: false })
+  const [config, setConfig] = useState<TurnosConfig>({ professionals: [], services: [], appointments: [], blockedTimes: [], enableCapacityPerHour: false, enableInsuranceInfo: false, enableWeeklyCalendar: false, enableProfessionalCalendars: false })
   const [generalConfig, setGeneralConfig] = useState<any>({})
   const [weekStart, setWeekStart] = useState(new Date())
 
