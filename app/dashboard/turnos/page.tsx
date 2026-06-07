@@ -1054,22 +1054,23 @@ const MAX_CAPACITY_UNIFIED = 10
                                 borderRadius: 4,
                                 padding: '3px 4px',
                                 display: 'flex',
-                                gap: 2,
+                                gap: 1,
                                 alignItems: 'center',
                                 fontSize: '9px',
                               }}
                               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}30`}
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'}
                             >
-                              <div style={{ width: 3, height: 3, borderRadius: '50%', background: prof?.color || '#2563FF', flexShrink: 0 }} />
                               <span style={{ color: 'white', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '9px', flex: 1 }}>
                                 {a.clientName}
                               </span>
-                              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', flexShrink: 0 }}>
-                                {config.enableInsuranceInfo && a.healthInsurance ? a.healthInsurance : 'Particular'}
-                              </span>
+                              {config.enableInsuranceInfo && (
+                                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', flexShrink: 0, fontWeight: 600 }}>
+                                  {a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}
+                                </span>
+                              )}
                               {config.enableCapacityPerHour && (
-                                <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>
+                                <span style={{ color: '#fbbf24', fontSize: '8px', fontWeight: 600, flexShrink: 0 }}>
                                   {a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}
                                 </span>
                               )}
