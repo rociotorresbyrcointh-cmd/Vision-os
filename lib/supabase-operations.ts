@@ -1,6 +1,7 @@
 import { supabase } from './supabase-client'
 
 // Mapeo de campos TypeScript a Supabase (snake_case)
+// NOTE: max_capacity_per_hour was removed because it doesn't exist in the professionals table
 function mapProfessionalToDb(prof: any) {
   return {
     id: prof.id,
@@ -11,7 +12,6 @@ function mapProfessionalToDb(prof: any) {
     hours_start: prof.hoursStart,
     hours_end: prof.hoursEnd,
     days_of_week: prof.daysOfWeek,
-    max_capacity_per_hour: prof.maxCapacityPerHour,
   }
 }
 
@@ -25,7 +25,7 @@ function mapProfessionalFromDb(prof: any) {
     hoursStart: prof.hours_start,
     hoursEnd: prof.hours_end,
     daysOfWeek: prof.days_of_week,
-    maxCapacityPerHour: prof.max_capacity_per_hour,
+    maxCapacityPerHour: prof.max_capacity_per_hour || 4, // Default to 4 if not in DB
   }
 }
 
