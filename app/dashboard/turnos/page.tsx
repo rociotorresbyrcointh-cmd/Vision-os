@@ -7,7 +7,7 @@ import { Professional, Service, Appointment, TurnosConfig, PROFESSIONAL_COLORS, 
 import { sendWhatsAppFromClient } from '@/lib/whatsapp-client'
 import { getPendingReminders, sendPendingReminders } from '@/lib/reminders-service'
 import { syncTurnosWithServer } from '@/lib/sync-service'
-import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment } from '@/lib/supabase-operations'
+import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional } from '@/lib/supabase-operations'
 import { useTurnosSync } from '@/lib/use-turnos-sync'
 
 const inputStyle: React.CSSProperties = {
@@ -144,6 +144,11 @@ export default function TurnosPage() {
   const [editingBlock, setEditingBlock] = useState<any>(null)
   const [blockForm, setBlockForm] = useState({ title: '', startDate: '', startTime: '09:00', endDate: '', endTime: '18:00', profId: '', recurring: '' })
 
+  // Phase A: Professional CRUD states
+  const [profError, setProfError] = useState<string | null>(null)
+  const [profLoading, setProfLoading] = useState(false)
+  const [profSuccess, setProfSuccess] = useState<string | null>(null)
+
   useEffect(() => {
     if (!user) return
 
@@ -238,22 +243,107 @@ export default function TurnosPage() {
     if (user) localStorage.setItem(`bos_turnos_${user.id}`, JSON.stringify(newCfg))
   }
 
-  const addProfessional = () => {
-    const id = Date.now().toString()
-    const newProf: Professional = { id, ...profForm }
-    saveConfig({ ...config, professionals: [...config.professionals, newProf] })
-    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
+  const addProfessional = async () => {
+    if (!user) {
+      console.error('❌ [UI] No user logged in')
+      return
+    }
+
+    console.log('📝 [UI] addProfessional START - User ID:', user.id)
+    setProfError(null)
+    setProfSuccess(null)
+    setProfLoading(true)
+
+    try {
+      const id = Date.now().toString()
+      const newProf: Professional = { id, ...profForm }
+
+      console.log('📝 [UI] Creating professional:', { id, name: newProf.name, userId: user.id })
+
+      const result = await supabaseAddProfessional(user.id, newProf)
+
+      console.log('📝 [UI] Supabase returned:', result)
+
+      if (!result) {
+        console.error('❌ [UI] Supabase returned null')
+        setProfError('Error al crear el profesional. Intenta nuevamente.')
+        setProfLoading(false)
+        return
+      }
+
+      console.log('✅ [UI] Professional created successfully, updating config')
+      setConfig({ ...config, professionals: [...config.professionals, result] })
+      setProfSuccess('Profesional creado exitosamente')
+      setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
+
+      setTimeout(() => setProfSuccess(null), 3000)
+    } catch (error) {
+      console.error('❌ [UI] Error creating professional:', error)
+      setProfError('Error de conexión. Verifica tu internet.')
+    } finally {
+      setProfLoading(false)
+    }
   }
 
-  const updateProfessional = (id: string) => {
-    const updated = config.professionals.map(p => p.id === id ? { ...p, ...profForm } : p)
-    saveConfig({ ...config, professionals: updated })
-    setEditingProf(null)
-    setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
+  const updateProfessional = async (id: string) => {
+    if (!user) return
+    setProfError(null)
+    setProfSuccess(null)
+    setProfLoading(true)
+
+    try {
+      const result = await supabaseUpdateProfessional(user.id, id, profForm)
+
+      if (!result) {
+        setProfError('Error al actualizar el profesional. Intenta nuevamente.')
+        setProfLoading(false)
+        return
+      }
+
+      const updated = config.professionals.map(p => p.id === id ? result : p)
+      setConfig({ ...config, professionals: updated })
+      setProfSuccess('Profesional actualizado exitosamente')
+      setEditingProf(null)
+      setProfForm({ name: '', specialty: '', hoursStart: '09:00', hoursEnd: '18:00', daysOfWeek: [1,2,3,4,5], color: '#ec4899', maxCapacityPerHour: 4 })
+
+      setTimeout(() => setProfSuccess(null), 3000)
+    } catch (error) {
+      console.error('Error updating professional:', error)
+      setProfError('Error de conexión. Verifica tu internet.')
+    } finally {
+      setProfLoading(false)
+    }
   }
 
-  const deleteProfessional = (id: string) => {
-    saveConfig({ ...config, professionals: config.professionals.filter(p => p.id !== id) })
+  const deleteProfessional = async (id: string) => {
+    if (!user) return
+
+    // SAFE DELETE: Check if professional has associated appointments
+    const associatedAppointments = config.appointments.filter(a => a.professionalId === id)
+
+    if (associatedAppointments.length > 0) {
+      const count = associatedAppointments.length
+      setProfError(`No se puede eliminar este profesional porque tiene ${count} ${count === 1 ? 'cita' : 'citas'} asociada${count === 1 ? '' : 's'}. Primero debes eliminar o reasignar esas citas.`)
+      return
+    }
+
+    setProfError(null)
+    setProfSuccess(null)
+    setProfLoading(true)
+
+    try {
+      await supabaseDeleteProfessional(user.id, id)
+
+      setConfig({ ...config, professionals: config.professionals.filter(p => p.id !== id) })
+      setProfSuccess('Profesional eliminado exitosamente')
+
+      setTimeout(() => setProfSuccess(null), 3000)
+    } catch (error) {
+      console.error('Error deleting professional:', error)
+      setProfError('Error al eliminar el profesional. Intenta nuevamente.')
+    } finally {
+      setProfLoading(false)
+    }
   }
 
   const addService = () => {
@@ -491,6 +581,23 @@ export default function TurnosPage() {
             <p style={labelStyle}>
               {editingProf ? 'Editar profesional' : 'Agregar profesional'}
             </p>
+
+            {/* Error Message */}
+            {profError && (
+              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: 12, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <AlertCircle size={16} style={{ color: '#ef4444', flexShrink: 0, marginTop: 2 }} />
+                <p style={{ color: '#fca5a5', fontSize: 12, margin: 0 }}>{profError}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {profSuccess && (
+              <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, padding: 12, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <AlertCircle size={16} style={{ color: '#22c55e', flexShrink: 0, marginTop: 2 }} />
+                <p style={{ color: '#86efac', fontSize: 12, margin: 0 }}>{profSuccess}</p>
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={labelStyle}>Nombre *</label>
@@ -571,16 +678,25 @@ export default function TurnosPage() {
                   if (editingProf) updateProfessional(editingProf.id)
                   else addProfessional()
                 }}
-                disabled={!canAddProf}
+                disabled={!canAddProf || profLoading}
                 style={{
-                  marginTop: 8, background: canAddProf ? 'linear-gradient(135deg,#fb923c,#f97316)' : 'rgba(251,146,60,0.2)',
+                  marginTop: 8, background: (canAddProf && !profLoading) ? 'linear-gradient(135deg,#fb923c,#f97316)' : 'rgba(251,146,60,0.2)',
                   color: 'white', border: 'none', borderRadius: 10, padding: '12px 0',
-                  fontWeight: 700, cursor: canAddProf ? 'pointer' : 'not-allowed',
+                  fontWeight: 700, cursor: (canAddProf && !profLoading) ? 'pointer' : 'not-allowed',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s',
+                  opacity: profLoading ? 0.6 : 1,
                 }}
               >
-                <Plus size={15} />
-                {editingProf ? 'Actualizar' : 'Agregar'} profesional
+                {profLoading ? (
+                  <>
+                    {editingProf ? 'Actualizando...' : 'Agregando...'}
+                  </>
+                ) : (
+                  <>
+                    <Plus size={15} />
+                    {editingProf ? 'Actualizar' : 'Agregar'} profesional
+                  </>
+                )}
               </button>
               {editingProf && (
                 <button

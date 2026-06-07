@@ -1,30 +1,95 @@
 import { supabase } from './supabase-client'
 
+// Mapeo de campos TypeScript a Supabase (snake_case)
+function mapProfessionalToDb(prof: any) {
+  return {
+    id: prof.id,
+    user_id: prof.user_id,
+    name: prof.name,
+    specialty: prof.specialty,
+    color: prof.color,
+    hours_start: prof.hoursStart,
+    hours_end: prof.hoursEnd,
+    days_of_week: prof.daysOfWeek,
+    max_capacity_per_hour: prof.maxCapacityPerHour,
+  }
+}
+
+function mapProfessionalFromDb(prof: any) {
+  return {
+    id: prof.id,
+    user_id: prof.user_id,
+    name: prof.name,
+    specialty: prof.specialty,
+    color: prof.color,
+    hoursStart: prof.hours_start,
+    hoursEnd: prof.hours_end,
+    daysOfWeek: prof.days_of_week,
+    maxCapacityPerHour: prof.max_capacity_per_hour,
+  }
+}
+
 // ─── PROFESIONALES ───
 export async function getProfessionals(userId: string) {
+  console.log('🔍 [SUPABASE] getProfessionals called with userId:', userId)
+
   const { data, error } = await supabase
     .from('professionals')
     .select('*')
     .eq('user_id', userId)
-  return data || []
+
+  console.log('🔍 [SUPABASE] Query result:', { recordCount: data?.length || 0, data, error })
+
+  if (error) {
+    console.error('❌ [SUPABASE] Query error:', error.message, error.code, error.details)
+    return []
+  }
+
+  return (data || []).map(mapProfessionalFromDb)
 }
 
 export async function addProfessional(userId: string, prof: any) {
+  console.log('🔧 [SUPABASE] addProfessional called with:', { userId, prof })
+  const recordToInsert = mapProfessionalToDb({ ...prof, user_id: userId })
+  console.log('🔧 [SUPABASE] Inserting record with mapped fields:', recordToInsert)
+
   const { data, error } = await supabase
     .from('professionals')
-    .insert([{ ...prof, user_id: userId }])
+    .insert([recordToInsert])
     .select()
-  return data?.[0] || null
+
+  console.log('🔧 [SUPABASE] Insert response:', { data, error })
+
+  if (error) {
+    console.error('❌ [SUPABASE] Insert error:', error.message, error.code, error.details)
+    return null
+  }
+
+  if (data && data[0]) {
+    return mapProfessionalFromDb(data[0])
+  }
+
+  return null
 }
 
 export async function updateProfessional(userId: string, profId: string, updates: any) {
-  const { data } = await supabase
+  console.log('🔧 [SUPABASE] updateProfessional called with:', { userId, profId, updates })
+  const mappedUpdates = mapProfessionalToDb(updates)
+  console.log('🔧 [SUPABASE] Updating with mapped fields:', mappedUpdates)
+
+  const { data, error } = await supabase
     .from('professionals')
-    .update(updates)
+    .update(mappedUpdates)
     .eq('id', profId)
     .eq('user_id', userId)
     .select()
-  return data?.[0] || null
+
+  if (error) {
+    console.error('❌ [SUPABASE] Update error:', error.message)
+    return null
+  }
+
+  return data?.[0] ? mapProfessionalFromDb(data[0]) : null
 }
 
 export async function deleteProfessional(userId: string, profId: string) {
