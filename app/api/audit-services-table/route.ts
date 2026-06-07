@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
         if (value === null) {
           inferredType = 'null'
         } else if (jsType === 'string') {
-          inferredType = value.length === 36 && value.includes('-') ? 'uuid' : 'text'
+          const strValue = value as string
+          inferredType = strValue.length === 36 && strValue.includes('-') ? 'uuid' : 'text'
         } else if (jsType === 'number') {
           inferredType = Number.isInteger(value) ? 'integer' : 'numeric'
         } else if (jsType === 'boolean') {
