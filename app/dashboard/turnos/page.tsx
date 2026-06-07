@@ -1507,10 +1507,16 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                   </div>
                   {appts.slice(0, 4).map(a => {
                     const prof = config.professionals.find(p => p.id === a.professionalId)
+                    const handleEditAppt = () => {
+                      const [startDate, startTime] = a.startTime.split('T')
+                      setEditingAppt(a)
+                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: a.professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
+                      setOpenModal(true)
+                    }
                     return (
                       <div
                         key={a.id}
-                        onClick={e => { e.stopPropagation() }}
+                        onClick={e => { e.stopPropagation(); handleEditAppt() }}
                         style={{
                           background: `${prof?.color || '#2563FF'}15`,
                           border: `1px solid ${prof?.color || '#2563FF'}40`,
@@ -1853,10 +1859,17 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       +
                     </button>
                   </div>
-                  {appts.slice(0, 4).map(a => (
+                  {appts.slice(0, 4).map(a => {
+                    const handleEditAppt = () => {
+                      const [startDate, startTime] = a.startTime.split('T')
+                      setEditingAppt(a)
+                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
+                      setOpenModal(true)
+                    }
+                    return (
                     <div
                       key={a.id}
-                      onClick={e => { e.stopPropagation() }}
+                      onClick={e => { e.stopPropagation(); handleEditAppt() }}
                       style={{
                         background: `${prof.color}15`,
                         border: `1px solid ${prof.color}40`,
@@ -1886,7 +1899,8 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                         </span>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                   {appts.length > 4 && (
                     <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 7, margin: 0 }}>
                       +{appts.length - 4} más
