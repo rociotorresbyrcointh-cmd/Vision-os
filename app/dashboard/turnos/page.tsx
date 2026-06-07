@@ -61,6 +61,7 @@ function generateAppointments(
           status: form.status,
           notes: form.notes,
           capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
+          patientLabel: form.patientLabel,
           healthInsurance: form.healthInsurance,
           membershipNumber: form.membershipNumber,
           createdAt: new Date().toISOString(),
@@ -88,6 +89,7 @@ function generateAppointments(
       status: form.status,
       notes: form.notes,
       capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
+      patientLabel: form.patientLabel,
       healthInsurance: form.healthInsurance,
       membershipNumber: form.membershipNumber,
       createdAt: new Date().toISOString(),
@@ -847,7 +849,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
   const [selectedDayForView, setSelectedDayForView] = useState<Date | null>(null)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedProfId, setSelectedProfId] = useState<string>('')
-  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, healthInsurance: '', membershipNumber: '' })
+  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
 
   // Verificar y enviar recordatorios automáticamente
   useEffect(() => {
@@ -866,14 +868,14 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
   const openModal = (profId: string, date: Date, time: string) => {
     setEditingAppt(null)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
     setModalOpen(true)
   }
 
   const editAppt = (appt: Appointment) => {
     const [startDate, startTime] = appt.startTime.split('T')
     setEditingAppt(appt)
-    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, capacityPerHour: appt.capacityPerHour || 1, healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
+    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, capacityPerHour: appt.capacityPerHour || 1, patientLabel: appt.patientLabel || '', healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
     setModalOpen(true)
   }
 
@@ -897,7 +899,7 @@ function CalendarView({ config, saveConfig, generalConfig }: { config: TurnosCon
 
     if (editingAppt) {
       const updated = config.appointments.map(a => a.id === editingAppt.id
-        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1, healthInsurance: form.healthInsurance, membershipNumber: form.membershipNumber }
+        ? { ...a, clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1, patientLabel: form.patientLabel, healthInsurance: form.healthInsurance, membershipNumber: form.membershipNumber }
         : a
       )
       saveConfig({ ...config, appointments: updated })
@@ -933,7 +935,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
     console.log('Closing modal and resetting form')
     setModalOpen(false)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
   }
 
   const deleteAppt = (id: string) => {
@@ -1070,6 +1072,11 @@ const MAX_CAPACITY_UNIFIED = 10
                               <span style={{ color: 'white', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '9px', flex: 1 }}>
                                 {a.clientName}
                               </span>
+                              {a.patientLabel && (
+                                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', flexShrink: 0, fontWeight: 600 }}>
+                                  {a.patientLabel.charAt(0).toUpperCase()}
+                                </span>
+                              )}
                               {config.enableInsuranceInfo && (
                                 <>
                                   {console.log(`📅 Weekly: ${a.clientName} | healthInsurance="${a.healthInsurance}" | showing: ${a.healthInsurance ? a.healthInsurance.charAt(0).toUpperCase() : 'P'}`)}
@@ -1136,6 +1143,11 @@ const MAX_CAPACITY_UNIFIED = 10
                   </div>
                 </>
               )}
+
+              <div>
+                <label style={labelStyle}>Etiqueta de Paciente</label>
+                <input type="text" placeholder="Ej: OSDE, VIP, Particular, Prepaga..." value={form.patientLabel || ''} onChange={e => setForm({ ...form, patientLabel: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+              </div>
 
               {/* Servicio */}
               <div>
@@ -1338,13 +1350,8 @@ const MAX_CAPACITY_UNIFIED = 10
                         >
                           <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</p>
                           <p style={{ color: `${prof?.color}99`, fontSize: 10, margin: '2px 0 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            {config.enableInsuranceInfo && (
-                              <>
-                                {console.log(`📊 Monthly: ${a.clientName} | healthInsurance="${a.healthInsurance}" | showing: ${a.healthInsurance || 'Particular'}`)}
-                                <span style={{ fontWeight: 600 }}>{a.healthInsurance || 'Particular'}</span>
-                                {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>•</span>}
-                              </>
-                            )}
+                            {a.patientLabel && <span style={{ fontWeight: 600 }}>{a.patientLabel}</span>}
+                            {a.patientLabel && config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>•</span>}
                             {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                           </p>
                         </div>
@@ -1372,7 +1379,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [selectedDateForCreate, setSelectedDateForCreate] = useState<Date | null>(null)
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
 
   const year = monthView.getFullYear()
   const month = monthView.getMonth()
@@ -1393,7 +1400,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
     setEditingAppt(null)
     setOpenModal(true)
   }
@@ -1520,7 +1527,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                     const handleEditAppt = () => {
                       const [startDate, startTime] = a.startTime.split('T')
                       setEditingAppt(a)
-                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: a.professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
+                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: a.professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
                       setOpenModal(true)
                     }
                     return (
@@ -1546,12 +1553,8 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
                           <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
-                            {config.enableInsuranceInfo && (
-                              <>
-                                <span style={{ fontWeight: 600 }}>{a.healthInsurance || 'Particular'}</span>
-                                {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
-                              </>
-                            )}
+                            {a.patientLabel && <span style={{ fontWeight: 600 }}>{a.patientLabel}</span>}
+                            {a.patientLabel && config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
                             {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                           </span>
                         </div>
@@ -1698,6 +1701,11 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </>
             )}
 
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Etiqueta de Paciente</label>
+              <input type="text" placeholder="Ej: OSDE, VIP, Particular, Prepaga..." value={form.patientLabel || ''} onChange={e => setForm({ ...form, patientLabel: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
+
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                 Guardar
@@ -1719,7 +1727,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const [openModal, setOpenModal] = useState(false)
   const [monthView, setMonthView] = useState(new Date())
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
-  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+  const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
 
   const prof = config.professionals.find(p => p.id === professionalId)
   const year = monthView.getFullYear()
@@ -1741,7 +1749,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const handleCreateTurno = (date: Date) => {
     const dateStr = getDateKey(date)
     setSelectedDateForCreate(date)
-    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, healthInsurance: '', membershipNumber: '' })
+    setForm({ date: dateStr, startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
     setEditingAppt(null)
     setOpenModal(true)
   }
@@ -1873,7 +1881,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                     const handleEditAppt = () => {
                       const [startDate, startTime] = a.startTime.split('T')
                       setEditingAppt(a)
-                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
+                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
                       setOpenModal(true)
                     }
                     return (
@@ -1899,12 +1907,8 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
                         <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
-                          {config.enableInsuranceInfo && (
-                            <>
-                              <span style={{ fontWeight: 600 }}>{a.healthInsurance || 'Particular'}</span>
-                              {config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
-                            </>
-                          )}
+                          {a.patientLabel && <span style={{ fontWeight: 600 }}>{a.patientLabel}</span>}
+                          {a.patientLabel && config.enableCapacityPerHour && <span style={{ opacity: 0.5 }}>•</span>}
                           {config.enableCapacityPerHour && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{a.capacityPerHour || 1}/{getMaxCapacity(config, a.professionalId)}</span>}
                         </span>
                       </div>
@@ -2045,6 +2049,11 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                 </div>
               </>
             )}
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Etiqueta de Paciente</label>
+              <input type="text" placeholder="Ej: OSDE, VIP, Particular, Prepaga..." value={form.patientLabel || ''} onChange={e => setForm({ ...form, patientLabel: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+            </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: `linear-gradient(135deg,${prof.color},${prof.color}99)`, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>

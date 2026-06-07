@@ -31,6 +31,7 @@ export interface Appointment {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
   notes?: string
   capacityPerHour?: number // 1-N: how much of professional's hourly capacity this appointment consumes
+  patientLabel?: string // patient info label: OSDE, VIP, Particular, etc.
   healthInsurance?: string // ej: OSDE, Swiss Medical, etc.
   membershipNumber?: string // número de afiliado/carnet
   createdAt: string
