@@ -1679,6 +1679,25 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
     }
   }
 
+  const deleteAppt = async (id: string) => {
+    if (confirm('¿Eliminár este turno?')) {
+      try {
+        const success = await supabaseDeleteAppointment(user!.id, id)
+        if (!success) {
+          alert('Error al eliminar el turno en Supabase. Intenta nuevamente.')
+          return
+        }
+
+        saveConfig({ ...config, appointments: config.appointments.filter(a => a.id !== id) })
+        setOpenModal(false)
+        console.log('✅ Appointment deleted from Supabase and local state')
+      } catch (error) {
+        console.error('❌ Error deleting appointment:', error)
+        alert('Error al eliminar el turno. Intenta nuevamente.')
+      }
+    }
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -1803,7 +1822,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
       {openModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
-            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>Nuevo Turno</h2>
+            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>{editingAppt ? 'Editar Turno' : 'Nuevo Turno'}</h2>
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fecha</label>
@@ -1934,11 +1953,16 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
-                Guardar
-              </button>
               <button onClick={() => setOpenModal(false)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                 Cancelar
+              </button>
+              {editingAppt && (
+                <button onClick={() => deleteAppt(editingAppt.id)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                  Eliminar
+                </button>
+              )}
+              <button onClick={saveTurno} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg,#2563FF,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                Guardar
               </button>
             </div>
           </div>
@@ -2048,6 +2072,25 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
       })
     } finally {
       if (savingRef) savingRef.current = false
+    }
+  }
+
+  const deleteAppt = async (id: string) => {
+    if (confirm('¿Eliminár este turno?')) {
+      try {
+        const success = await supabaseDeleteAppointment(user!.id, id)
+        if (!success) {
+          alert('Error al eliminar el turno en Supabase. Intenta nuevamente.')
+          return
+        }
+
+        saveConfig({ ...config, appointments: config.appointments.filter(a => a.id !== id) })
+        setOpenModal(false)
+        console.log('✅ Appointment deleted from Supabase and local state')
+      } catch (error) {
+        console.error('❌ Error deleting appointment:', error)
+        alert('Error al eliminar el turno. Intenta nuevamente.')
+      }
     }
   }
 
@@ -2182,7 +2225,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
       {openModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
-            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>Nuevo Turno - {prof.name}</h2>
+            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 20, fontWeight: 700 }}>{editingAppt ? 'Editar Turno' : 'Nuevo Turno'} - {prof.name}</h2>
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fecha</label>
@@ -2314,6 +2357,11 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               <button onClick={() => setOpenModal(false)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                 Cancelar
               </button>
+              {editingAppt && (
+                <button onClick={() => deleteAppt(editingAppt.id)} style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                  Eliminar
+                </button>
+              )}
             </div>
           </div>
         </div>
