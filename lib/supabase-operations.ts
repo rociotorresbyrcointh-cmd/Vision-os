@@ -231,6 +231,9 @@ function mapAppointmentToDb(apt: any) {
     end_time: apt.endTime,
     status: apt.status || 'confirmed',
     notes: apt.notes || null,
+    recurrence_group_id: apt.recurrenceGroupId || null,
+    recurrence_created_at: apt.recurrenceCreatedAt || null,
+    recurrence_metadata: apt.recurrenceMetadata || null,
   }
 }
 
@@ -248,6 +251,9 @@ function mapAppointmentFromDb(apt: any) {
     status: apt.status,
     notes: apt.notes || '',
     capacityPerHour: 1, // Default: appointments consume 1 unit of capacity
+    recurrenceGroupId: apt.recurrence_group_id || undefined,
+    recurrenceCreatedAt: apt.recurrence_created_at || undefined,
+    recurrenceMetadata: apt.recurrence_metadata || undefined,
     patientLabel: '',
     healthInsurance: '',
     membershipNumber: '',
@@ -299,6 +305,7 @@ export async function addMultipleAppointments(userId: string, appts: any[]) {
 
   const recordsToInsert = appts.map(a => mapAppointmentToDb({ ...a, user_id: userId }))
   console.log('🔧 [SUPABASE] Inserting', recordsToInsert.length, 'appointments')
+  console.log('📊 [SUPABASE] EXACT PAYLOAD:', JSON.stringify(recordsToInsert[0], null, 2))
 
   const { data, error } = await supabase
     .from('appointments')
@@ -308,7 +315,12 @@ export async function addMultipleAppointments(userId: string, appts: any[]) {
   console.log('🔧 [SUPABASE] Batch insert response:', { count: data?.length || 0, error })
 
   if (error) {
-    console.error('❌ [SUPABASE] Batch insert error:', error.message, error.code, error.details)
+    console.error('❌ [SUPABASE] BATCH INSERT FAILED')
+    console.error('Code:', error.code)
+    console.error('Message:', error.message)
+    console.error('Details:', error.details)
+    console.error('Hint:', error.hint)
+    console.error('Full error object:', JSON.stringify(error, null, 2))
     return []
   }
 
@@ -488,6 +500,7 @@ export async function updateAppointmentFlow(options: {
 
       try {
         console.log('⏳ CALLING addMultipleAppointments()')
+        console.log('📊 PAYLOAD TO SUPABASE:', JSON.stringify(appointments.map(a => mapAppointmentToDb({...a, user_id: userId})), null, 2))
         const result = await addMultipleAppointments(userId, appointments)
         console.log('✅ SUPABASE RESPONSE:', result)
         if (!result || result.length === 0) {
@@ -501,8 +514,13 @@ export async function updateAppointmentFlow(options: {
           mode: 'create',
           appointments: [...config.appointments, ...result]
         })
-      } catch (error) {
-        console.error('❌ Error creating appointments:', error)
+      } catch (error: any) {
+        console.error('❌ ERROR CREATING APPOINTMENTS')
+        console.error('Error code:', error?.code)
+        console.error('Error message:', error?.message)
+        console.error('Error details:', error?.details)
+        console.error('Error hint:', error?.hint)
+        console.error('Full error:', JSON.stringify(error, null, 2))
         onError('Error al crear el turno. Intenta nuevamente.')
       }
     }

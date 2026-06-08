@@ -1030,6 +1030,8 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedProfId, setSelectedProfId] = useState<string>('')
   const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null)
   const savingRef = useRef(false)
 
   // Verificar y enviar recordatorios automáticamente
@@ -1068,21 +1070,23 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
       console.log('🛑 saveAppt blocked: already saving')
       return
     }
+
+    // VALIDATIONS BEFORE LOCKING (prevent savingRef from getting stuck)
+    if (!form.clientName.trim() || !form.serviceId || !form.profId || !form.date || !form.startTime) return
+
+    const service = config.services.find(s => s.id === form.serviceId)
+    if (!service) return
+
+    if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+      const prof = config.professionals.find(p => p.id === form.profId)
+      const maxCap = getMaxCapacity(config, form.profId)
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+      return
+    }
+
     savingRef.current = true
 
     try {
-      if (!form.clientName.trim() || !form.serviceId || !form.profId || !form.date || !form.startTime) return
-
-      const service = config.services.find(s => s.id === form.serviceId)
-      if (!service) return
-
-      if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-        const prof = config.professionals.find(p => p.id === form.profId)
-        const maxCap = getMaxCapacity(config, form.profId)
-        alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
-        return
-      }
-
       await updateAppointmentFlow({
         userId: user!.id,
         editingAppt,
@@ -1130,22 +1134,63 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
   }
 
   const deleteAppt = async (id: string) => {
-    if (confirm('¿Eliminár este turno?')) {
-      try {
+    const apt = config.appointments.find(a => a.id === id)
+    console.log('[CalendarView] deleteAppt called', {
+      appointmentId: id,
+      foundAppointment: apt ? { id: apt.id, clientName: apt.clientName, recurrenceGroupId: apt.recurrenceGroupId } : 'NOT FOUND',
+      configAppointmentsCount: config.appointments.length,
+      allAppointmentIds: config.appointments.map(a => ({ id: a.id, hasRecurrence: !!a.recurrenceGroupId }))
+    })
+    if (!apt) return
+
+    // Si es recurrente, mostrar modal de opción
+    if (apt.recurrenceGroupId) {
+      setAppointmentToDelete(apt)
+      setDeleteModalOpen(true)
+    } else {
+      // Si no es recurrente, eliminar directamente
+      await performDelete(id, 'single')
+    }
+  }
+
+  const performDelete = async (id: string, mode: 'single' | 'series') => {
+    const apt = config.appointments.find(a => a.id === id)
+    if (!apt) return
+
+    try {
+      if (mode === 'single') {
+        // Eliminar solo este turno
         const success = await supabaseDeleteAppointment(user!.id, id)
         if (!success) {
           alert('Error al eliminar el turno en Supabase. Intenta nuevamente.')
           return
         }
-
-        // Update local state only after Supabase succeeds
         saveConfig({ ...config, appointments: config.appointments.filter(a => a.id !== id) })
-        setModalOpen(false)
-        console.log('✅ Appointment deleted from Supabase and local state')
-      } catch (error) {
-        console.error('❌ Error deleting appointment:', error)
-        alert('Error al eliminar el turno. Intenta nuevamente.')
+        console.log('✅ Single appointment deleted')
+      } else if (mode === 'series' && apt.recurrenceGroupId) {
+        // Eliminar toda la serie
+        const idsToDelete = config.appointments
+          .filter(a => a.recurrenceGroupId === apt.recurrenceGroupId)
+          .map(a => a.id)
+
+        for (const delId of idsToDelete) {
+          await supabaseDeleteAppointment(user!.id, delId)
+        }
+
+        saveConfig({
+          ...config,
+          appointments: config.appointments.filter(a => a.recurrenceGroupId !== apt.recurrenceGroupId)
+        })
+        console.log(`✅ Series deleted (${idsToDelete.length} appointments)`)
       }
+
+      setModalOpen(false)
+      setDeleteModalOpen(false)
+      setAppointmentToDelete(null)
+    } catch (error) {
+      console.error('❌ Error deleting appointment:', error)
+      alert('Error al eliminar el turno. Intenta nuevamente.')
+      setDeleteModalOpen(false)
     }
   }
 
@@ -1494,6 +1539,49 @@ const MAX_CAPACITY_UNIFIED = 10
         </div>
       )}
 
+      {/* Modal: Delete confirmation with series option */}
+      {deleteModalOpen && appointmentToDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 400 }}>
+            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 18, fontWeight: 700 }}>¿Qué deseas eliminar?</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={() => {
+                  performDelete(appointmentToDelete.id, 'single')
+                  setDeleteModalOpen(false)
+                }}
+                style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+              >
+                ○ Solo este turno
+              </button>
+
+              {appointmentToDelete.recurrenceGroupId && (
+                <button
+                  onClick={() => {
+                    performDelete(appointmentToDelete.id, 'series')
+                    setDeleteModalOpen(false)
+                  }}
+                  style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+                >
+                  ○ Toda la serie
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setAppointmentToDelete(null)
+                }}
+                style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Ver todos los turnos del día */}
       {dayViewOpen && selectedDayForView && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setDayViewOpen(false)}>
@@ -1584,6 +1672,8 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null)
   const savingRef = useRef(false)
 
   const year = monthView.getFullYear()
@@ -1618,21 +1708,23 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
       console.log('🛑 saveTurno blocked: already saving')
       return
     }
+
+    // VALIDATIONS BEFORE LOCKING (prevent savingRef from getting stuck)
+    if (!form.clientName || !form.profId || !form.date || !form.startTime) return
+
+    const service = config.services.find(s => s.id === form.serviceId)
+    if (!service) return
+
+    if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+      const prof = config.professionals.find(p => p.id === form.profId)
+      const maxCap = getMaxCapacity(config, form.profId)
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+      return
+    }
+
     savingRef.current = true
 
     try {
-      if (!form.clientName || !form.profId || !form.date || !form.startTime) return
-
-      const service = config.services.find(s => s.id === form.serviceId)
-      if (!service) return
-
-      if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-        const prof = config.professionals.find(p => p.id === form.profId)
-        const maxCap = getMaxCapacity(config, form.profId)
-        alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
-        return
-      }
-
       await updateAppointmentFlow({
         userId: user!.id,
         editingAppt,
@@ -1680,21 +1772,58 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
   }
 
   const deleteAppt = async (id: string) => {
-    if (confirm('¿Eliminár este turno?')) {
-      try {
+    const apt = config.appointments.find(a => a.id === id)
+    console.log(`[deleteAppt] View context, appointmentId: ${id}`, {
+      foundAppointment: apt ? { id: apt.id, clientName: apt.clientName, recurrenceGroupId: apt.recurrenceGroupId } : 'NOT FOUND',
+      configAppointmentsCount: config.appointments.length,
+      appointmentSample: config.appointments.slice(0, 2).map(a => ({ id: a.id, hasRecurrence: !!a.recurrenceGroupId }))
+    })
+    if (!apt) return
+
+    if (apt.recurrenceGroupId) {
+      setAppointmentToDelete(apt)
+      setDeleteModalOpen(true)
+    } else {
+      await performDelete(id, 'single')
+    }
+  }
+
+  const performDelete = async (id: string, mode: 'single' | 'series') => {
+    const apt = config.appointments.find(a => a.id === id)
+    if (!apt) return
+
+    try {
+      if (mode === 'single') {
         const success = await supabaseDeleteAppointment(user!.id, id)
         if (!success) {
           alert('Error al eliminar el turno en Supabase. Intenta nuevamente.')
           return
         }
-
         saveConfig({ ...config, appointments: config.appointments.filter(a => a.id !== id) })
-        setOpenModal(false)
-        console.log('✅ Appointment deleted from Supabase and local state')
-      } catch (error) {
-        console.error('❌ Error deleting appointment:', error)
-        alert('Error al eliminar el turno. Intenta nuevamente.')
+        console.log('✅ Single appointment deleted')
+      } else if (mode === 'series' && apt.recurrenceGroupId) {
+        const idsToDelete = config.appointments
+          .filter(a => a.recurrenceGroupId === apt.recurrenceGroupId)
+          .map(a => a.id)
+
+        for (const delId of idsToDelete) {
+          await supabaseDeleteAppointment(user!.id, delId)
+        }
+
+        saveConfig({
+          ...config,
+          appointments: config.appointments.filter(a => a.recurrenceGroupId !== apt.recurrenceGroupId)
+        })
+        console.log(`✅ Series deleted (${idsToDelete.length} appointments)`)
       }
+
+      setOpenModal(false)
+      setDeleteModalOpen(false)
+      setAppointmentToDelete(null)
+    } catch (error) {
+      console.error('❌ Error deleting appointment:', error)
+      alert('Error al eliminar el turno. Intenta nuevamente.')
+      setDeleteModalOpen(false)
     }
   }
 
@@ -1968,6 +2097,49 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
           </div>
         </div>
       )}
+
+      {/* Modal: Delete confirmation with series option */}
+      {deleteModalOpen && appointmentToDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 400 }}>
+            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 18, fontWeight: 700 }}>¿Qué deseas eliminar?</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={() => {
+                  performDelete(appointmentToDelete.id, 'single')
+                  setDeleteModalOpen(false)
+                }}
+                style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+              >
+                ○ Solo este turno
+              </button>
+
+              {appointmentToDelete.recurrenceGroupId && (
+                <button
+                  onClick={() => {
+                    performDelete(appointmentToDelete.id, 'series')
+                    setDeleteModalOpen(false)
+                  }}
+                  style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+                >
+                  ○ Toda la serie
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setAppointmentToDelete(null)
+                }}
+                style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1979,6 +2151,8 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const [monthView, setMonthView] = useState(new Date())
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null)
   const savingRef = useRef(false)
 
   const prof = config.professionals.find(p => p.id === professionalId)
@@ -2014,21 +2188,23 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
       console.log('🛑 saveTurno blocked: already saving')
       return
     }
+
+    // VALIDATIONS BEFORE LOCKING (prevent savingRef from getting stuck)
+    if (!form.clientName || !form.profId || !form.date || !form.startTime) return
+
+    const service = config.services.find(s => s.id === form.serviceId)
+    if (!service) return
+
+    if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+      const prof = config.professionals.find(p => p.id === form.profId)
+      const maxCap = getMaxCapacity(config, form.profId)
+      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+      return
+    }
+
     savingRef.current = true
 
     try {
-      if (!form.clientName || !form.profId || !form.date || !form.startTime) return
-
-      const service = config.services.find(s => s.id === form.serviceId)
-      if (!service) return
-
-      if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-        const prof = config.professionals.find(p => p.id === form.profId)
-        const maxCap = getMaxCapacity(config, form.profId)
-        alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
-        return
-      }
-
       await updateAppointmentFlow({
         userId: user!.id,
         editingAppt,
@@ -2076,21 +2252,58 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
   }
 
   const deleteAppt = async (id: string) => {
-    if (confirm('¿Eliminár este turno?')) {
-      try {
+    const apt = config.appointments.find(a => a.id === id)
+    console.log(`[deleteAppt] View context, appointmentId: ${id}`, {
+      foundAppointment: apt ? { id: apt.id, clientName: apt.clientName, recurrenceGroupId: apt.recurrenceGroupId } : 'NOT FOUND',
+      configAppointmentsCount: config.appointments.length,
+      appointmentSample: config.appointments.slice(0, 2).map(a => ({ id: a.id, hasRecurrence: !!a.recurrenceGroupId }))
+    })
+    if (!apt) return
+
+    if (apt.recurrenceGroupId) {
+      setAppointmentToDelete(apt)
+      setDeleteModalOpen(true)
+    } else {
+      await performDelete(id, 'single')
+    }
+  }
+
+  const performDelete = async (id: string, mode: 'single' | 'series') => {
+    const apt = config.appointments.find(a => a.id === id)
+    if (!apt) return
+
+    try {
+      if (mode === 'single') {
         const success = await supabaseDeleteAppointment(user!.id, id)
         if (!success) {
           alert('Error al eliminar el turno en Supabase. Intenta nuevamente.')
           return
         }
-
         saveConfig({ ...config, appointments: config.appointments.filter(a => a.id !== id) })
-        setOpenModal(false)
-        console.log('✅ Appointment deleted from Supabase and local state')
-      } catch (error) {
-        console.error('❌ Error deleting appointment:', error)
-        alert('Error al eliminar el turno. Intenta nuevamente.')
+        console.log('✅ Single appointment deleted')
+      } else if (mode === 'series' && apt.recurrenceGroupId) {
+        const idsToDelete = config.appointments
+          .filter(a => a.recurrenceGroupId === apt.recurrenceGroupId)
+          .map(a => a.id)
+
+        for (const delId of idsToDelete) {
+          await supabaseDeleteAppointment(user!.id, delId)
+        }
+
+        saveConfig({
+          ...config,
+          appointments: config.appointments.filter(a => a.recurrenceGroupId !== apt.recurrenceGroupId)
+        })
+        console.log(`✅ Series deleted (${idsToDelete.length} appointments)`)
       }
+
+      setOpenModal(false)
+      setDeleteModalOpen(false)
+      setAppointmentToDelete(null)
+    } catch (error) {
+      console.error('❌ Error deleting appointment:', error)
+      alert('Error al eliminar el turno. Intenta nuevamente.')
+      setDeleteModalOpen(false)
     }
   }
 
@@ -2362,6 +2575,49 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                   Eliminar
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete confirmation with series option */}
+      {deleteModalOpen && appointmentToDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 400 }}>
+            <h2 style={{ color: 'white', marginTop: 0, marginBottom: 24, fontSize: 18, fontWeight: 700 }}>¿Qué deseas eliminar?</h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={() => {
+                  performDelete(appointmentToDelete.id, 'single')
+                  setDeleteModalOpen(false)
+                }}
+                style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+              >
+                ○ Solo este turno
+              </button>
+
+              {appointmentToDelete.recurrenceGroupId && (
+                <button
+                  onClick={() => {
+                    performDelete(appointmentToDelete.id, 'series')
+                    setDeleteModalOpen(false)
+                  }}
+                  style={{ flex: 1, padding: '12px 16px', background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+                >
+                  ○ Toda la serie
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setAppointmentToDelete(null)
+                }}
+                style={{ flex: 1, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>

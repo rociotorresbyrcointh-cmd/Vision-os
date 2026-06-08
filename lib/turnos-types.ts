@@ -38,6 +38,9 @@ export interface Appointment {
   membershipNumber?: string // número de afiliado/carnet
   createdAt: string
   source: 'admin' | 'public' // admin = creado por el dueño, public = reserva del cliente
+  recurrenceGroupId?: string // UUID: identifica todas las sesiones de una serie
+  recurrenceCreatedAt?: string // ISO 8601: cuándo se creó la serie
+  recurrenceMetadata?: any // JSON: datos futuros (sesión X de Y, etc.)
 }
 
 export interface PatientProfile {

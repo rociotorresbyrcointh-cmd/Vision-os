@@ -1,5 +1,14 @@
 import { Appointment, Service, TurnosConfig, getDateKey } from './turnos-types'
 
+// UUID generator (simple implementation without external dependency)
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 /**
  * UNIFIED appointment generation logic used by ALL calendar views
  * This is the SINGLE SOURCE OF TRUTH for how appointments are created
@@ -10,6 +19,8 @@ export function generateAppointments(
   service: Service
 ): Appointment[] {
   const appointments: Appointment[] = []
+  const recurrenceGroupId = form.recurring ? generateUUID() : undefined
+  const recurrenceCreatedAt = form.recurring ? new Date().toISOString() : undefined
 
   if (form.recurring) {
     const startDate = new Date(form.date)
@@ -43,6 +54,13 @@ export function generateAppointments(
           membershipNumber: form.membershipNumber,
           createdAt: new Date().toISOString(),
           source: 'admin',
+          recurrenceGroupId,
+          recurrenceCreatedAt,
+          recurrenceMetadata: {
+            session: sessionsCreated + 1,
+            totalSessions: sessionCount,
+            daysOfWeek: form.recurring,
+          },
         })
         sessionsCreated++
       }
@@ -71,6 +89,10 @@ export function generateAppointments(
       membershipNumber: form.membershipNumber,
       createdAt: new Date().toISOString(),
       source: 'admin',
+      // No recurrence metadata for non-recurring appointments
+      recurrenceGroupId: undefined,
+      recurrenceCreatedAt: undefined,
+      recurrenceMetadata: undefined,
     })
   }
 
