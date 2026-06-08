@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth'
 import { Calendar, Plus, Trash2, Edit2, User, Clock, DollarSign, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
 import { Professional, Service, Appointment, TurnosConfig, PROFESSIONAL_COLORS, getDayName, getWeekDates, getDateKey, timeToMinutes, minutesToTime } from '@/lib/turnos-types'
 import { sendWhatsAppFromClient } from '@/lib/whatsapp-client'
 import { getPendingReminders, sendPendingReminders } from '@/lib/reminders-service'
 import { syncTurnosWithServer } from '@/lib/sync-service'
-import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional, addService as addServiceSB, updateService as updateServiceSB, deleteService as deleteServiceSB, countAppointmentsByService, addAppointment as supabaseAddAppointment, addMultipleAppointments as supabaseAddMultipleAppointments, updateAppointment as supabaseUpdateAppointment, deleteAppointment as supabaseDeleteAppointment } from '@/lib/supabase-operations'
+import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional, addService as addServiceSB, updateService as updateServiceSB, deleteService as deleteServiceSB, countAppointmentsByService, addAppointment as supabaseAddAppointment, addMultipleAppointments as supabaseAddMultipleAppointments, updateAppointment as supabaseUpdateAppointment, deleteAppointment as supabaseDeleteAppointment, updateAppointmentFlow } from '@/lib/supabase-operations'
+import { generateAppointments } from '@/lib/appointment-helpers'
 import { useTurnosSync } from '@/lib/use-turnos-sync'
 
 const inputStyle: React.CSSProperties = {
@@ -25,80 +26,6 @@ const focus = (e: React.FocusEvent<any>) => e.target.style.borderColor = 'rgba(3
 const blur = (e: React.FocusEvent<any>) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'
 
 type Tab = 'professionals' | 'services' | 'bloqueos' | 'calendar' | 'calendar-full' | `prof_${string}`
-
-// Lógica compartida de generación de appointments (recurrentes y únicos)
-function generateAppointments(
-  form: any,
-  config: TurnosConfig,
-  service: Service
-): Appointment[] {
-  const appointments: Appointment[] = []
-
-  if (form.recurring) {
-    const startDate = new Date(form.date)
-    const recurringDays = form.recurring.split(',').map(Number)
-    const sessionCount = Number(form.sessionCount) || 1
-
-    let currentDate = new Date(startDate)
-    let sessionsCreated = 0
-
-    while (sessionsCreated < sessionCount) {
-      if (recurringDays.includes(currentDate.getDay())) {
-        const dateKey = getDateKey(currentDate)
-        const startDateTime = `${dateKey}T${form.startTime}`
-        const apptStartDate = new Date(startDateTime)
-        const apptEndDate = new Date(apptStartDate.getTime() + service.durationMinutes * 60 * 1000)
-
-        appointments.push({
-          id: `${Date.now()}_${sessionsCreated}_${Math.random().toString(36).substring(2)}`,
-          clientName: form.clientName,
-          clientWhatsApp: form.clientWhatsApp,
-          clientEmail: form.clientEmail,
-          professionalId: form.profId,
-          serviceId: form.serviceId,
-          startTime: startDateTime,
-          endTime: apptEndDate.toISOString(),
-          status: form.status,
-          notes: form.notes,
-          capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
-          patientLabel: form.patientLabel,
-          healthInsurance: form.healthInsurance,
-          membershipNumber: form.membershipNumber,
-          createdAt: new Date().toISOString(),
-          source: 'admin',
-        })
-        sessionsCreated++
-      }
-      currentDate.setDate(currentDate.getDate() + 1)
-    }
-  } else {
-    const startDateTime = `${form.date}T${form.startTime}`
-    const startDate = new Date(startDateTime)
-    const endDate = new Date(startDate.getTime() + service.durationMinutes * 60 * 1000)
-    const endDateTime = endDate.toISOString()
-
-    appointments.push({
-      id: `${Date.now()}_${Math.random().toString(36).substring(2)}`,
-      clientName: form.clientName,
-      clientWhatsApp: form.clientWhatsApp,
-      clientEmail: form.clientEmail,
-      professionalId: form.profId,
-      serviceId: form.serviceId,
-      startTime: startDateTime,
-      endTime: endDateTime,
-      status: form.status,
-      notes: form.notes,
-      capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
-      patientLabel: form.patientLabel,
-      healthInsurance: form.healthInsurance,
-      membershipNumber: form.membershipNumber,
-      createdAt: new Date().toISOString(),
-      source: 'admin',
-    })
-  }
-
-  return appointments
-}
 
 // Funciones unificadas de capacidad por profesional
 function getUsedCapacity(config: TurnosConfig, profId: string, dateKey: string, hour: string): number {
@@ -1103,6 +1030,7 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedProfId, setSelectedProfId] = useState<string>('')
   const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+  const savingRef = useRef(false)
 
   // Verificar y enviar recordatorios automáticamente
   useEffect(() => {
@@ -1133,68 +1061,50 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
   }
 
   const saveAppt = async () => {
-    if (!form.clientName.trim() || !form.serviceId || !form.profId || !form.date || !form.startTime) return
+    setModalOpen(false)
+    console.log('🔵 saveAppt() CALLED - editingAppt:', !!editingAppt)
 
-    const service = config.services.find(s => s.id === form.serviceId)
-    if (!service) return
-
-    // Validar capacidad si está habilitada la complejidad
-    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-      const prof = config.professionals.find(p => p.id === form.profId)
-      const maxCap = getMaxCapacity(config, form.profId)
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+    if (savingRef?.current) {
+      console.log('🛑 saveAppt blocked: already saving')
       return
     }
+    savingRef.current = true
 
-    const appointments = generateAppointments(form, config, service)
-    console.log('🔍 DEBUG - Form healthInsurance:', form.healthInsurance, 'Type:', typeof form.healthInsurance)
-    console.log('🔍 DEBUG - Created appointment:', JSON.stringify(appointments[0], null, 2))
+    try {
+      if (!form.clientName.trim() || !form.serviceId || !form.profId || !form.date || !form.startTime) return
 
-    if (editingAppt) {
-      // Update existing appointment in Supabase first
-      const updates = { clientName: form.clientName, clientWhatsApp: form.clientWhatsApp, clientEmail: form.clientEmail, professionalId: form.profId, serviceId: form.serviceId, startTime: `${form.date}T${form.startTime}`, status: form.status, notes: form.notes, capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1, patientLabel: form.patientLabel, healthInsurance: form.healthInsurance, membershipNumber: form.membershipNumber }
+      const service = config.services.find(s => s.id === form.serviceId)
+      if (!service) return
 
-      try {
-        const result = await supabaseUpdateAppointment(user!.id, editingAppt.id, updates)
-        if (!result) {
-          alert('Error al actualizar el turno en Supabase. Intenta nuevamente.')
-          return
-        }
-
-        // Update local state only after Supabase succeeds
-        const updated = config.appointments.map(a => a.id === editingAppt.id ? { ...a, ...updates } : a)
-        saveConfig({ ...config, appointments: updated })
-        console.log('✅ Appointment updated in Supabase and local state')
-      } catch (error) {
-        console.error('❌ Error updating appointment:', error)
-        alert('Error al actualizar el turno. Intenta nuevamente.')
-        return
-      }
-    } else {
-      // Add new appointments to Supabase first
-      try {
-        const result = await supabaseAddMultipleAppointments(user!.id, appointments)
-        if (!result || result.length === 0) {
-          alert('Error al crear el turno en Supabase. Intenta nuevamente.')
-          return
-        }
-
-        // Update local state only after Supabase succeeds
-        saveConfig({ ...config, appointments: [...config.appointments, ...result] })
-        console.log('✅ Appointments created in Supabase and local state')
-      } catch (error) {
-        console.error('❌ Error creating appointments:', error)
-        alert('Error al crear el turno. Intenta nuevamente.')
+      if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+        const prof = config.professionals.find(p => p.id === form.profId)
+        const maxCap = getMaxCapacity(config, form.profId)
+        alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
         return
       }
 
-      // Enviar mensaje de WhatsApp de confirmación
-      if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
-        const professional = config.professionals.find(p => p.id === form.profId)
-        const serviceName = service?.name || ''
-        const professionalName = professional?.name || ''
+      await updateAppointmentFlow({
+        userId: user!.id,
+        editingAppt,
+        form,
+        config,
+        service,
+        onSuccess: async (result) => {
+          saveConfig({ ...config, appointments: result.appointments })
 
-        const message = `¡Tu turno está confirmado! 📅
+          // Reload from Supabase for cross-browser sync
+          const refreshedAppts = await getAppointments(user!.id)
+          if (refreshedAppts && refreshedAppts.length > 0) {
+            saveConfig({ ...config, appointments: refreshedAppts })
+          }
+
+          // Send WhatsApp confirmation for new appointments only
+          if (!editingAppt && form.clientWhatsApp && generalConfig?.whatsappNumber) {
+            const professional = config.professionals.find(p => p.id === form.profId)
+            const serviceName = service?.name || ''
+            const professionalName = professional?.name || ''
+
+            const message = `¡Tu turno está confirmado! 📅
 
 Servicio: ${serviceName}
 Profesional: ${professionalName}
@@ -1203,21 +1113,20 @@ Hora: ${form.startTime}
 
 Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
-        sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
-          .then(result => {
-            if (result.success) {
-              console.log('✓ WhatsApp enviado a', form.clientWhatsApp)
-            } else {
-              console.warn('✗ Error enviando WhatsApp:', result.error)
-            }
-          })
-          .catch(err => console.error('Error enviando WhatsApp:', err))
-      }
-    }
+            sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
+              .catch(err => console.error('Error enviando WhatsApp:', err))
+          }
 
-    console.log('Closing modal and resetting form')
-    setModalOpen(false)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+          setEditingAppt(null)
+          setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+        },
+        onError: (error) => {
+          alert(error)
+        }
+      })
+    } finally {
+      if (savingRef) savingRef.current = false
+    }
   }
 
   const deleteAppt = async (id: string) => {
@@ -1675,6 +1584,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [openModal, setOpenModal] = useState(false)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+  const savingRef = useRef(false)
 
   const year = monthView.getFullYear()
   const month = monthView.getMonth()
@@ -1701,45 +1611,50 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   }
 
   const saveTurno = async () => {
-    if (!form.clientName || !form.profId || !form.date || !form.startTime) return
+    setOpenModal(false)
+    console.log('🔵 saveTurno() CALLED')
 
-    const service = config.services.find(s => s.id === form.serviceId)
-    if (!service) return
-
-    // Validar capacidad si está habilitada la complejidad
-    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-      const prof = config.professionals.find(p => p.id === form.profId)
-      const maxCap = getMaxCapacity(config, form.profId)
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+    if (savingRef?.current) {
+      console.log('🛑 saveTurno blocked: already saving')
       return
     }
+    savingRef.current = true
 
-    const appointments = generateAppointments(form, config, service)
-
-    // Add appointments to Supabase first
     try {
-      const result = await supabaseAddMultipleAppointments(user!.id, appointments)
-      if (!result || result.length === 0) {
-        alert('Error al crear el turno en Supabase. Intenta nuevamente.')
+      if (!form.clientName || !form.profId || !form.date || !form.startTime) return
+
+      const service = config.services.find(s => s.id === form.serviceId)
+      if (!service) return
+
+      if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+        const prof = config.professionals.find(p => p.id === form.profId)
+        const maxCap = getMaxCapacity(config, form.profId)
+        alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
         return
       }
 
-      // Update local state only after Supabase succeeds
-      saveConfig({ ...config, appointments: [...config.appointments, ...result] })
-      console.log('✅ Appointments created in Supabase and local state')
-    } catch (error) {
-      console.error('❌ Error creating appointments:', error)
-      alert('Error al crear el turno. Intenta nuevamente.')
-      return
-    }
+      await updateAppointmentFlow({
+        userId: user!.id,
+        editingAppt,
+        form,
+        config,
+        service,
+        onSuccess: async (result) => {
+          saveConfig({ ...config, appointments: result.appointments })
 
-    // Enviar mensaje de WhatsApp de confirmación
-    if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
-      const professional = config.professionals.find(p => p.id === form.profId)
-      const serviceName = service?.name || ''
-      const professionalName = professional?.name || ''
+          // Reload from Supabase for cross-browser sync
+          const refreshedAppts = await getAppointments(user!.id)
+          if (refreshedAppts && refreshedAppts.length > 0) {
+            saveConfig({ ...config, appointments: refreshedAppts })
+          }
 
-      const message = `¡Tu turno está confirmado! 📅
+          // Send WhatsApp confirmation for new appointments only
+          if (!editingAppt && form.clientWhatsApp && generalConfig?.whatsappNumber) {
+            const professional = config.professionals.find(p => p.id === form.profId)
+            const serviceName = service?.name || ''
+            const professionalName = professional?.name || ''
+
+            const message = `¡Tu turno está confirmado! 📅
 
 Servicio: ${serviceName}
 Profesional: ${professionalName}
@@ -1748,18 +1663,20 @@ Hora: ${form.startTime}
 
 Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
-      sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
-        .then(result => {
-          if (result.success) {
-            console.log('✓ WhatsApp enviado a', form.clientWhatsApp)
-          } else {
-            console.warn('✗ Error enviando WhatsApp:', result.error)
+            sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
+              .catch(err => console.error('Error enviando WhatsApp:', err))
           }
-        })
-        .catch(err => console.error('Error enviando WhatsApp:', err))
-    }
 
-    setOpenModal(false)
+          setEditingAppt(null)
+          setForm({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: config.professionals[0]?.id || '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+        },
+        onError: (error) => {
+          alert(error)
+        }
+      })
+    } finally {
+      if (savingRef) savingRef.current = false
+    }
   }
 
   return (
@@ -2038,6 +1955,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const [monthView, setMonthView] = useState(new Date())
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+  const savingRef = useRef(false)
 
   const prof = config.professionals.find(p => p.id === professionalId)
   const year = monthView.getFullYear()
@@ -2065,43 +1983,50 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   }
 
   const saveTurno = async () => {
-    if (!form.clientName || !form.profId || !form.date || !form.startTime) return
+    setOpenModal(false)
+    console.log('🔵 saveTurno() CALLED')
 
-    const service = config.services.find(s => s.id === form.serviceId)
-    if (!service) return
-
-    if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-      const prof = config.professionals.find(p => p.id === form.profId)
-      const maxCap = getMaxCapacity(config, form.profId)
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+    if (savingRef?.current) {
+      console.log('🛑 saveTurno blocked: already saving')
       return
     }
+    savingRef.current = true
 
-    const appointments = generateAppointments(form, config, service)
-
-    // Add appointments to Supabase first
     try {
-      const result = await supabaseAddMultipleAppointments(user!.id, appointments)
-      if (!result || result.length === 0) {
-        alert('Error al crear el turno en Supabase. Intenta nuevamente.')
+      if (!form.clientName || !form.profId || !form.date || !form.startTime) return
+
+      const service = config.services.find(s => s.id === form.serviceId)
+      if (!service) return
+
+      if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+        const prof = config.professionals.find(p => p.id === form.profId)
+        const maxCap = getMaxCapacity(config, form.profId)
+        alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
         return
       }
 
-      // Update local state only after Supabase succeeds
-      saveConfig({ ...config, appointments: [...config.appointments, ...result] })
-      console.log('✅ Appointments created in Supabase and local state')
-    } catch (error) {
-      console.error('❌ Error creating appointments:', error)
-      alert('Error al crear el turno. Intenta nuevamente.')
-      return
-    }
+      await updateAppointmentFlow({
+        userId: user!.id,
+        editingAppt,
+        form,
+        config,
+        service,
+        onSuccess: async (result) => {
+          saveConfig({ ...config, appointments: result.appointments })
 
-    if (form.clientWhatsApp && generalConfig?.whatsappNumber) {
-      const professional = config.professionals.find(p => p.id === form.profId)
-      const serviceName = service?.name || ''
-      const professionalName = professional?.name || ''
+          // Reload from Supabase for cross-browser sync
+          const refreshedAppts = await getAppointments(user!.id)
+          if (refreshedAppts && refreshedAppts.length > 0) {
+            saveConfig({ ...config, appointments: refreshedAppts })
+          }
 
-      const message = `¡Tu turno está confirmado! 📅
+          // Send WhatsApp confirmation for new appointments only
+          if (!editingAppt && form.clientWhatsApp && generalConfig?.whatsappNumber) {
+            const professional = config.professionals.find(p => p.id === form.profId)
+            const serviceName = service?.name || ''
+            const professionalName = professional?.name || ''
+
+            const message = `¡Tu turno está confirmado! 📅
 
 Servicio: ${serviceName}
 Profesional: ${professionalName}
@@ -2110,18 +2035,20 @@ Hora: ${form.startTime}
 
 Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
 
-      sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
-        .then(result => {
-          if (result.success) {
-            console.log('✓ WhatsApp enviado a', form.clientWhatsApp)
-          } else {
-            console.warn('✗ Error enviando WhatsApp:', result.error)
+            sendWhatsAppFromClient(form.clientWhatsApp, message, 'confirmation')
+              .catch(err => console.error('Error enviando WhatsApp:', err))
           }
-        })
-        .catch(err => console.error('Error enviando WhatsApp:', err))
-    }
 
-    setOpenModal(false)
+          setEditingAppt(null)
+          setForm({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+        },
+        onError: (error) => {
+          alert(error)
+        }
+      })
+    } finally {
+      if (savingRef) savingRef.current = false
+    }
   }
 
   if (!prof) return <div style={{ color: 'rgba(255,255,255,0.4)' }}>Profesional no encontrado</div>

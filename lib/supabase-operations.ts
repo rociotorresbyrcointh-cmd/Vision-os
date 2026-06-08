@@ -1,4 +1,6 @@
 import { supabase } from './supabase-client'
+import { generateAppointments } from './appointment-helpers'
+import type { TurnosConfig, Service } from './turnos-types'
 
 // Mapeo de campos TypeScript a Supabase (snake_case)
 // NOTE: max_capacity_per_hour was removed because it doesn't exist in the professionals table
@@ -403,4 +405,109 @@ export async function updateBusinessConfig(userId: string, updates: any) {
     .eq('user_id', userId)
     .select()
   return data?.[0] || null
+}
+
+// ─── UNIFIED APPOINTMENT FLOW ───
+// Single source of truth for ALL appointment edits across all calendar views
+// Used by: CalendarView (Weekly), MonthCalendarView (Monthly), ProfessionalCalendarView (Professional)
+export async function updateAppointmentFlow(options: {
+  userId: string
+  editingAppt: any | null
+  form: any
+  config: TurnosConfig
+  service: Service
+  onSuccess: (result: any) => void
+  onError: (error: string) => void
+}) {
+  const { userId, editingAppt, form, config, service, onSuccess, onError } = options
+
+  console.log('🔵 updateAppointmentFlow() CALLED - editingAppt:', !!editingAppt)
+
+  try {
+    if (editingAppt) {
+      // ─── EDIT MODE: Update existing appointment ───
+      console.log('🟢 ✅ ENTERING EDIT MODE')
+      console.log('📝 UPDATE ID:', editingAppt.id)
+
+      const startDateTime = `${form.date}T${form.startTime}`
+      const startDate = new Date(startDateTime)
+      const endDate = new Date(startDate.getTime() + service.durationMinutes * 60 * 1000)
+      const endDateTime = endDate.toISOString()
+
+      const updates = {
+        clientName: form.clientName,
+        clientWhatsApp: form.clientWhatsApp,
+        clientEmail: form.clientEmail,
+        professionalId: form.profId,
+        serviceId: form.serviceId,
+        startTime: startDateTime,
+        endTime: endDateTime,
+        status: form.status,
+        notes: form.notes,
+        capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
+        patientLabel: form.patientLabel,
+        healthInsurance: form.healthInsurance,
+        membershipNumber: form.membershipNumber
+      }
+
+      console.log('🔍 UPDATE PAYLOAD:', {
+        appointmentId: editingAppt.id,
+        newData: updates
+      })
+
+      try {
+        console.log('⏳ CALLING updateAppointment()')
+        const result = await updateAppointment(userId, editingAppt.id, updates)
+        console.log('✅ SUPABASE RESPONSE:', result)
+        if (!result) {
+          onError('Error al actualizar el turno en Supabase. Intenta nuevamente.')
+          return
+        }
+
+        console.log('✅ UPDATE SUCCESSFUL')
+
+        // Return updated appointment data
+        const updated = config.appointments.map((a: any) => a.id === editingAppt.id ? { ...a, ...updates } : a)
+        onSuccess({
+          mode: 'edit',
+          appointments: updated,
+          appointmentToRefresh: editingAppt.id
+        })
+      } catch (error) {
+        console.error('❌ Error updating appointment:', error)
+        onError('Error al actualizar el turno. Intenta nuevamente.')
+      }
+    } else {
+      // ─── CREATE MODE: Generate new appointments ───
+      console.log('🔴 ✅ ENTERING CREATE MODE')
+
+      const appointments = generateAppointments(form, config, service)
+      console.log('📕 CREATE APPOINTMENT')
+      console.log('🔍 Generated appointments:', appointments.length)
+      console.log('🔍 First appointment ID:', appointments[0]?.id)
+
+      try {
+        console.log('⏳ CALLING addMultipleAppointments()')
+        const result = await addMultipleAppointments(userId, appointments)
+        console.log('✅ SUPABASE RESPONSE:', result)
+        if (!result || result.length === 0) {
+          onError('Error al crear el turno en Supabase. Intenta nuevamente.')
+          return
+        }
+
+        console.log('✅ CREATE SUCCESSFUL')
+
+        onSuccess({
+          mode: 'create',
+          appointments: [...config.appointments, ...result]
+        })
+      } catch (error) {
+        console.error('❌ Error creating appointments:', error)
+        onError('Error al crear el turno. Intenta nuevamente.')
+      }
+    }
+  } catch (error) {
+    console.error('❌ Unexpected error in updateAppointmentFlow:', error)
+    onError('Error inesperado. Intenta nuevamente.')
+  }
 }
