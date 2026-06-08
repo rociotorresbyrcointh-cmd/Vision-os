@@ -231,6 +231,7 @@ function mapAppointmentToDb(apt: any) {
     end_time: apt.endTime,
     status: apt.status || 'confirmed',
     notes: apt.notes || null,
+    capacity_per_hour: apt.capacityPerHour ? Number(apt.capacityPerHour) : 1,
     recurrence_group_id: apt.recurrenceGroupId || null,
     recurrence_created_at: apt.recurrenceCreatedAt || null,
     recurrence_metadata: apt.recurrenceMetadata || null,
@@ -250,7 +251,7 @@ function mapAppointmentFromDb(apt: any) {
     endTime: apt.end_time,
     status: apt.status,
     notes: apt.notes || '',
-    capacityPerHour: 1, // Default: appointments consume 1 unit of capacity
+    capacityPerHour: apt.capacity_per_hour || 1,
     recurrenceGroupId: apt.recurrence_group_id || undefined,
     recurrenceCreatedAt: apt.recurrence_created_at || undefined,
     recurrenceMetadata: apt.recurrence_metadata || undefined,
