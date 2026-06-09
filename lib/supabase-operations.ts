@@ -235,6 +235,9 @@ function mapAppointmentToDb(apt: any) {
     recurrence_group_id: apt.recurrenceGroupId || null,
     recurrence_created_at: apt.recurrenceCreatedAt || null,
     recurrence_metadata: apt.recurrenceMetadata || null,
+    patient_label: apt.patientLabel || null,
+    health_insurance: apt.healthInsurance || null,
+    membership_number: apt.membershipNumber || null,
   }
 }
 
@@ -255,9 +258,9 @@ function mapAppointmentFromDb(apt: any) {
     recurrenceGroupId: apt.recurrence_group_id || undefined,
     recurrenceCreatedAt: apt.recurrence_created_at || undefined,
     recurrenceMetadata: apt.recurrence_metadata || undefined,
-    patientLabel: '',
-    healthInsurance: '',
-    membershipNumber: '',
+    patientLabel: apt.patient_label || '',
+    healthInsurance: apt.health_insurance || '',
+    membershipNumber: apt.membership_number || '',
     createdAt: apt.created_at,
     source: 'admin' as const,
   }
