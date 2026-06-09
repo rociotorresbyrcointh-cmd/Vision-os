@@ -278,7 +278,14 @@ export async function getAppointments(userId: string) {
     return []
   }
 
-  return (data || []).map(mapAppointmentFromDb)
+  const mapped = (data || []).map(mapAppointmentFromDb)
+  console.log('📥 [SUPABASE-MAPPED] First appointment after mapping:', mapped[0] ? {
+    id: mapped[0].id,
+    startTime: mapped[0].startTime,
+    endTime: mapped[0].endTime
+  } : 'NONE')
+
+  return mapped
 }
 
 export async function addAppointment(userId: string, appt: any) {
@@ -441,11 +448,27 @@ export async function updateAppointmentFlow(options: {
       // ─── EDIT MODE: Update existing appointment ───
       console.log('🟢 ✅ ENTERING EDIT MODE')
       console.log('📝 UPDATE ID:', editingAppt.id)
+      console.log('📋 FORM RECEIVED:', {
+        date: form.date,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        serviceId: form.serviceId
+      })
+      console.log('🔧 SERVICE DURATION:', {
+        serviceId: service.id,
+        durationMinutes: service.durationMinutes
+      })
 
       const startDateTime = `${form.date}T${form.startTime}`
       const startDate = new Date(startDateTime)
+      console.log('⏱️ [STEP 1] startDateTime:', startDateTime)
+      console.log('⏱️ [STEP 1] startDate object:', startDate.toISOString())
+
       const endDate = new Date(startDate.getTime() + service.durationMinutes * 60 * 1000)
       const endDateTime = endDate.toISOString()
+      console.log('⏱️ [STEP 2] CALCULATED endDate (startTime + durationMinutes):', endDateTime)
+      console.log('⏱️ [STEP 2] form.endTime value:', form.endTime)
+      console.log('⏱️ [STEP 2] MISMATCH?', form.endTime && !endDateTime.includes(form.endTime.substring(0, 5)))
 
       const updates = {
         clientName: form.clientName,

@@ -25,6 +25,13 @@ const labelStyle: React.CSSProperties = {
 const focus = (e: React.FocusEvent<any>) => e.target.style.borderColor = 'rgba(37,99,255,0.5)'
 const blur = (e: React.FocusEvent<any>) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'
 
+// Extrae HH:MM usando hora LOCAL (no UTC)
+const getLocalTimeFromDate = (date: Date): string => {
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 type Tab = 'professionals' | 'services' | 'bloqueos' | 'calendar' | 'calendar-full' | `prof_${string}`
 
 // Funciones unificadas de capacidad por profesional
@@ -51,6 +58,36 @@ function getCapacityPerHourOptions(config: TurnosConfig, profId: string): number
   if (!config.enableCapacityPerHour) return []
   const maxCapacity = getMaxCapacity(config, profId)
   return Array.from({ length: maxCapacity }, (_, i) => i + 1)
+}
+
+// Validación atómica de capacidad para recurrencias
+function validateRecurrenceCapacity(form: any, config: TurnosConfig, service: Service): { valid: boolean; conflicts: Array<{ date: string; time: string }> } {
+  // Si no es recurrencia, no validar (se valida por separado)
+  if (!form.recurring) {
+    return { valid: true, conflicts: [] }
+  }
+
+  // Generar todas las ocurrencias de la recurrencia
+  const appointments = generateAppointments(form, config, service)
+
+  // Validar capacidad para cada ocurrencia
+  const conflicts = appointments
+    .map(apt => ({
+      date: apt.startTime.substring(0, 10),
+      time: apt.startTime.substring(11, 16),
+      appointment: apt,
+    }))
+    .filter(({ appointment }) => {
+      const dateKey = appointment.startTime.substring(0, 10)
+      const time = appointment.startTime.substring(11, 16)
+      return !canAddAppointment(config, appointment.professionalId, dateKey, time, appointment.capacityPerHour || 1)
+    })
+    .map(({ date, time }) => ({ date, time }))
+
+  return {
+    valid: conflicts.length === 0,
+    conflicts,
+  }
 }
 
 export default function TurnosPage() {
@@ -1029,7 +1066,7 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
   const [selectedDayForView, setSelectedDayForView] = useState<Date | null>(null)
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedProfId, setSelectedProfId] = useState<string>('')
-  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+  const [form, setForm] = useState({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', endTime: '', status: 'confirmed' as const, notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null)
   const savingRef = useRef(false)
@@ -1051,14 +1088,29 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
 
   const openModal = (profId: string, date: Date, time: string) => {
     setEditingAppt(null)
-    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+    setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId, date: getDateKey(date), startTime: time, endTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
     setModalOpen(true)
   }
 
   const editAppt = (appt: Appointment) => {
+    console.log('🔍 [CalendarView-editAppt] STEP 0 - appt.endTime RAW:', appt.endTime)
+    console.log('🔍 [CalendarView-editAppt] STEP 0 - appt.endTime TYPE:', typeof appt.endTime)
+    console.log('🔍 [CalendarView-editAppt] STEP 0 - appt.endTime SUBSTRING(11,16):', appt.endTime.substring(11, 16))
+
     const [startDate, startTime] = appt.startTime.split('T')
+    const service = config.services.find(s => s.id === appt.serviceId)
+    const startDt = new Date(`${startDate}T${startTime}`)
+    const endDt = new Date(startDt.getTime() + (service?.durationMinutes || 60) * 60 * 1000)
+    const calculatedEndTime = getLocalTimeFromDate(endDt)
+
+    const endTimeForForm = calculatedEndTime
+    console.log('🔍 [CalendarView-editAppt] STEP 1 - endTimeForForm BEFORE setForm:', endTimeForForm)
+
     setEditingAppt(appt)
-    setForm({ clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, capacityPerHour: appt.capacityPerHour || 1, patientLabel: appt.patientLabel || '', healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
+    const formObject = { clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), endTime: endTimeForForm, status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, capacityPerHour: appt.capacityPerHour || 1, patientLabel: appt.patientLabel || '', healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' }
+    console.log('🔍 [CalendarView-editAppt] STEP 2 - formObject.endTime:', formObject.endTime)
+
+    setForm(formObject)
     setModalOpen(true)
   }
 
@@ -1077,16 +1129,37 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
 
-    if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-      const prof = config.professionals.find(p => p.id === form.profId)
-      const maxCap = getMaxCapacity(config, form.profId)
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
-      return
+    // Validación de capacidad (para turnos simples Y recurrencias)
+    if (!editingAppt) {
+      if (form.recurring) {
+        // Validación atómica para recurrencias
+        const validation = validateRecurrenceCapacity(form, config, service)
+        if (!validation.valid) {
+          const conflictList = validation.conflicts.map(c => `  • ${c.date} - ${c.time}`).join('\n')
+          alert(`❌ No se puede crear la serie completa.\n\nConflictos detectados:\n${conflictList}\n\nEsos horarios ya alcanzaron la capacidad máxima.`)
+          return
+        }
+      } else {
+        // Validación simple para turnos individuales
+        if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+          const prof = config.professionals.find(p => p.id === form.profId)
+          const maxCap = getMaxCapacity(config, form.profId)
+          alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+          return
+        }
+      }
     }
 
     savingRef.current = true
 
     try {
+      console.log('📤 [saveAppt-TRACE] FORM AT UPDATE CALL:', {
+        mode: editingAppt ? 'EDIT' : 'CREATE',
+        editingAppt: editingAppt ? { id: editingAppt.id, startTime: editingAppt.startTime, endTime: editingAppt.endTime } : 'NULL',
+        form: { date: form.date, startTime: form.startTime, endTime: form.endTime || 'UNDEFINED', serviceId: form.serviceId },
+        service: { durationMinutes: service.durationMinutes }
+      })
+
       await updateAppointmentFlow({
         userId: user!.id,
         editingAppt,
@@ -1122,7 +1195,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
           }
 
           setEditingAppt(null)
-          setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
+          setForm({ clientName: '', clientWhatsApp: '', clientEmail: '', serviceId: '', profId: '', date: '', startTime: '', endTime: '', status: 'confirmed', notes: '', recurring: '', sessionCount: 1, capacityPerHour: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
         },
         onError: (error) => {
           alert(error)
@@ -1715,16 +1788,37 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
 
-    if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-      const prof = config.professionals.find(p => p.id === form.profId)
-      const maxCap = getMaxCapacity(config, form.profId)
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
-      return
+    // Validación de capacidad (para turnos simples Y recurrencias)
+    if (!editingAppt) {
+      if (form.recurring) {
+        // Validación atómica para recurrencias
+        const validation = validateRecurrenceCapacity(form, config, service)
+        if (!validation.valid) {
+          const conflictList = validation.conflicts.map(c => `  • ${c.date} - ${c.time}`).join('\n')
+          alert(`❌ No se puede crear la serie completa.\n\nConflictos detectados:\n${conflictList}\n\nEsos horarios ya alcanzaron la capacidad máxima.`)
+          return
+        }
+      } else {
+        // Validación simple para turnos individuales
+        if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+          const prof = config.professionals.find(p => p.id === form.profId)
+          const maxCap = getMaxCapacity(config, form.profId)
+          alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+          return
+        }
+      }
     }
 
     savingRef.current = true
 
     try {
+      console.log('📤 [saveAppt-TRACE] FORM AT UPDATE CALL:', {
+        mode: editingAppt ? 'EDIT' : 'CREATE',
+        editingAppt: editingAppt ? { id: editingAppt.id, startTime: editingAppt.startTime, endTime: editingAppt.endTime } : 'NULL',
+        form: { date: form.date, startTime: form.startTime, endTime: form.endTime || 'UNDEFINED', serviceId: form.serviceId },
+        service: { durationMinutes: service.durationMinutes }
+      })
+
       await updateAppointmentFlow({
         userId: user!.id,
         editingAppt,
@@ -1900,9 +1994,24 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                   {appts.slice(0, 4).map(a => {
                     const prof = config.professionals.find(p => p.id === a.professionalId)
                     const handleEditAppt = () => {
+                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 0 - a.endTime RAW:', a.endTime)
+                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 0 - a.endTime TYPE:', typeof a.endTime)
+                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 0 - a.endTime SUBSTRING(11,16):', a.endTime.substring(11, 16))
+
                       const [startDate, startTime] = a.startTime.split('T')
+                      const service = config.services.find(s => s.id === a.serviceId)
+                      const startDt = new Date(`${startDate}T${startTime}`)
+                      const endDt = new Date(startDt.getTime() + (service?.durationMinutes || 60) * 60 * 1000)
+                      const calculatedEndTime = getLocalTimeFromDate(endDt)
+
+                      const endTimeForForm = calculatedEndTime
+                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 1 - endTimeForForm BEFORE setForm:', endTimeForForm)
+
                       setEditingAppt(a)
-                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: a.professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
+                      const formObject = { date: startDate, startTime: startTime.substring(0, 5), endTime: endTimeForForm, clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: a.professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' }
+                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 2 - formObject.endTime:', formObject.endTime)
+
+                      setForm(formObject)
                       setOpenModal(true)
                     }
                     return (
@@ -1965,7 +2074,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hora Fin</label>
-                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={(e) => { console.log('🔍 [INPUT-endTime] FOCUSED - form.endTime:', form.endTime, '| input.value:', e.target.value); focus(e) }} onBlur={blur} />
               </div>
             </div>
 
@@ -2195,16 +2304,37 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
 
-    if (!editingAppt && !canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
-      const prof = config.professionals.find(p => p.id === form.profId)
-      const maxCap = getMaxCapacity(config, form.profId)
-      alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
-      return
+    // Validación de capacidad (para turnos simples Y recurrencias)
+    if (!editingAppt) {
+      if (form.recurring) {
+        // Validación atómica para recurrencias
+        const validation = validateRecurrenceCapacity(form, config, service)
+        if (!validation.valid) {
+          const conflictList = validation.conflicts.map(c => `  • ${c.date} - ${c.time}`).join('\n')
+          alert(`❌ No se puede crear la serie completa.\n\nConflictos detectados:\n${conflictList}\n\nEsos horarios ya alcanzaron la capacidad máxima.`)
+          return
+        }
+      } else {
+        // Validación simple para turnos individuales
+        if (!canAddAppointment(config, form.profId, form.date, form.startTime, form.capacityPerHour || 1)) {
+          const prof = config.professionals.find(p => p.id === form.profId)
+          const maxCap = getMaxCapacity(config, form.profId)
+          alert('❌ No hay suficientes slots disponibles en ese horario. Máximo: ' + maxCap + ' para ' + (prof?.name || 'profesional'))
+          return
+        }
+      }
     }
 
     savingRef.current = true
 
     try {
+      console.log('📤 [saveAppt-TRACE] FORM AT UPDATE CALL:', {
+        mode: editingAppt ? 'EDIT' : 'CREATE',
+        editingAppt: editingAppt ? { id: editingAppt.id, startTime: editingAppt.startTime, endTime: editingAppt.endTime } : 'NULL',
+        form: { date: form.date, startTime: form.startTime, endTime: form.endTime || 'UNDEFINED', serviceId: form.serviceId },
+        service: { durationMinutes: service.durationMinutes }
+      })
+
       await updateAppointmentFlow({
         userId: user!.id,
         editingAppt,
@@ -2388,8 +2518,25 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                   {appts.slice(0, 4).map(a => {
                     const handleEditAppt = () => {
                       const [startDate, startTime] = a.startTime.split('T')
+                      const service = config.services.find(s => s.id === a.serviceId)
+                      const startDt = new Date(`${startDate}T${startTime}`)
+                      const endDt = new Date(startDt.getTime() + (service?.durationMinutes || 60) * 60 * 1000)
+                      const calculatedEndTime = getLocalTimeFromDate(endDt)
+
+                      console.log('🔍 [ProfessionalCalendarView-handleEditAppt] TIMEZONE DEBUG:', {
+                        startDate: startDate,
+                        startTime: startTime,
+                        startDt_toString: startDt.toString(),
+                        startDt_toISOString: startDt.toISOString(),
+                        service_durationMinutes: service?.durationMinutes,
+                        endDt_toString: endDt.toString(),
+                        endDt_toISOString: endDt.toISOString(),
+                        calculatedEndTime: calculatedEndTime,
+                        appt_original_endTime: a.endTime
+                      })
+
                       setEditingAppt(a)
-                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: (new Date(new Date(a.startTime).getTime() + 60*60000)).toISOString().substring(11, 16), clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
+                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: calculatedEndTime, clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
                       setOpenModal(true)
                     }
                     return (
@@ -2452,7 +2599,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hora Fin</label>
-                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
+                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={(e) => { console.log('🔍 [INPUT-endTime] FOCUSED - form.endTime:', form.endTime, '| input.value:', e.target.value); focus(e) }} onBlur={blur} />
               </div>
             </div>
 
