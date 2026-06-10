@@ -32,6 +32,21 @@ const getLocalTimeFromDate = (date: Date): string => {
   return `${hours}:${minutes}`
 }
 
+// Convierte daysOfWeek string a nombres legibles
+const getDaysOfWeekNames = (daysOfWeekStr: string): string => {
+  const dayMap: { [key: string]: string } = {
+    '0': 'Domingo',
+    '1': 'Lunes',
+    '2': 'Martes',
+    '3': 'Miércoles',
+    '4': 'Jueves',
+    '5': 'Viernes',
+    '6': 'Sábado',
+  }
+  const days = daysOfWeekStr.split(',').map(d => dayMap[d.trim()]).filter(Boolean)
+  return days.join(', ')
+}
+
 type Tab = 'professionals' | 'services' | 'bloqueos' | 'calendar' | 'calendar-full' | `prof_${string}`
 
 // Funciones unificadas de capacidad por profesional
@@ -1093,10 +1108,6 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
   }
 
   const editAppt = (appt: Appointment) => {
-    console.log('🔍 [CalendarView-editAppt] STEP 0 - appt.endTime RAW:', appt.endTime)
-    console.log('🔍 [CalendarView-editAppt] STEP 0 - appt.endTime TYPE:', typeof appt.endTime)
-    console.log('🔍 [CalendarView-editAppt] STEP 0 - appt.endTime SUBSTRING(11,16):', appt.endTime.substring(11, 16))
-
     const [startDate, startTime] = appt.startTime.split('T')
     const service = config.services.find(s => s.id === appt.serviceId)
     const startDt = new Date(`${startDate}T${startTime}`)
@@ -1104,11 +1115,9 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
     const calculatedEndTime = getLocalTimeFromDate(endDt)
 
     const endTimeForForm = calculatedEndTime
-    console.log('🔍 [CalendarView-editAppt] STEP 1 - endTimeForForm BEFORE setForm:', endTimeForForm)
 
     setEditingAppt(appt)
-    const formObject = { clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), endTime: endTimeForForm, status: appt.status as any, notes: appt.notes || '', recurring: '', sessionCount: 1, capacityPerHour: appt.capacityPerHour || 1, patientLabel: appt.patientLabel || '', healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' }
-    console.log('🔍 [CalendarView-editAppt] STEP 2 - formObject.endTime:', formObject.endTime)
+    const formObject = { clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', serviceId: config.appointments.find(a => a.id === appt.id)?.serviceId || '', profId: appt.professionalId, date: startDate, startTime: startTime.substring(0, 5), endTime: endTimeForForm, status: appt.status as any, notes: appt.notes || '', recurring: appt.recurrenceMetadata?.daysOfWeek || '', sessionCount: appt.recurrenceMetadata?.totalSessions || 1, capacityPerHour: appt.capacityPerHour || 1, patientLabel: appt.patientLabel || '', healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' }
 
     setForm(formObject)
     setModalOpen(true)
@@ -1524,50 +1533,79 @@ const MAX_CAPACITY_UNIFIED = 10
                 </select>
               </div>
 
-              {/* Recurrencia */}
-              <div>
-                <label style={labelStyle}>Repetir turno</label>
-                <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                  <option value="">No repetir (una sola vez)</option>
-                  <optgroup label="Selecciona los días que se repite:">
-                    <option value="1">Todos los lunes</option>
-                    <option value="2">Todos los martes</option>
-                    <option value="3">Todos los miércoles</option>
-                    <option value="4">Todos los jueves</option>
-                    <option value="5">Todos los viernes</option>
-                    <option value="1,3,5">Lunes, miércoles, viernes</option>
-                    <option value="2,4">Martes y jueves</option>
-                    <option value="1,2,3,4,5">Lunes a viernes</option>
-                    <option value="0,6">Fines de semana</option>
-                    <option value="1,2,3,4,5,0,6">Todos los días</option>
-                  </optgroup>
-                </select>
-              </div>
-
-              {/* Cantidad de sesiones */}
-              {form.recurring && (
-                <div>
-                  <label style={labelStyle}>¿Cuántas sesiones?</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={form.sessionCount}
-                    onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
-                    style={inputStyle}
-                    onFocus={focus}
-                    onBlur={blur}
-                    placeholder="Ej: 10 para 10 sesiones en esos días"
-                  />
-                  <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
-                    <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
-                      ✓ Se crearán {form.sessionCount} sesiones
-                    </p>
-                    <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
-                      Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+              {editingAppt?.recurrenceGroupId && editingAppt?.recurrenceMetadata && (
+                <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)', margin: '0 0 12px 0', display: 'flex', gap: 6, alignItems: 'center' }}>
+                    📅 TURNO RECURRENTE
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Frecuencia:</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{getDaysOfWeekNames(editingAppt.recurrenceMetadata.daysOfWeek)}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Sesión:</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{editingAppt.recurrenceMetadata.session} de {editingAppt.recurrenceMetadata.totalSessions}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Restan:</p>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{editingAppt.recurrenceMetadata.totalSessions - editingAppt.recurrenceMetadata.session} sesiones</p>
+                    </div>
+                    <p style={{ fontSize: 9, color: 'rgba(255,165,0,0.6)', margin: '8px 0 0 0', lineHeight: '1.4' }}>
+                      ⚠️ La recurrencia no puede modificarse. Para cambiarla elimine la serie y cree una nueva.
                     </p>
                   </div>
                 </div>
+              )}
+
+              {!editingAppt && (
+                <>
+                  {/* Recurrencia */}
+                  <div>
+                    <label style={labelStyle}>Repetir turno</label>
+                    <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                      <option value="">No repetir (una sola vez)</option>
+                      <optgroup label="Selecciona los días que se repite:">
+                        <option value="1">Todos los lunes</option>
+                        <option value="2">Todos los martes</option>
+                        <option value="3">Todos los miércoles</option>
+                        <option value="4">Todos los jueves</option>
+                        <option value="5">Todos los viernes</option>
+                        <option value="1,3,5">Lunes, miércoles, viernes</option>
+                        <option value="2,4">Martes y jueves</option>
+                        <option value="1,2,3,4,5">Lunes a viernes</option>
+                        <option value="0,6">Fines de semana</option>
+                        <option value="1,2,3,4,5,0,6">Todos los días</option>
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  {/* Cantidad de sesiones */}
+                  {form.recurring && (
+                    <div>
+                      <label style={labelStyle}>¿Cuántas sesiones?</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="52"
+                        value={form.sessionCount}
+                        onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
+                        style={inputStyle}
+                        onFocus={focus}
+                        onBlur={blur}
+                        placeholder="Ej: 10 para 10 sesiones en esos días"
+                      />
+                      <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
+                        <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
+                          ✓ Se crearán {form.sessionCount} sesiones
+                        </p>
+                        <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
+                          Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Complejidad */}
@@ -1747,6 +1785,7 @@ function MonthCalendarView({ config, saveConfig, monthView, setMonthView, genera
   const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: '', serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null)
+  const [selectedDayForModal, setSelectedDayForModal] = useState<Date | null>(null)
   const savingRef = useRef(false)
 
   const year = monthView.getFullYear()
@@ -1947,7 +1986,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
           return (
             <div
               key={idx}
-              onClick={() => date && setMonthView(date)}
+              onClick={() => date && setSelectedDayForModal(date)}
               style={{
                 minHeight: 120,
                 background: date ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.2)',
@@ -1994,10 +2033,6 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                   {appts.slice(0, 4).map(a => {
                     const prof = config.professionals.find(p => p.id === a.professionalId)
                     const handleEditAppt = () => {
-                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 0 - a.endTime RAW:', a.endTime)
-                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 0 - a.endTime TYPE:', typeof a.endTime)
-                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 0 - a.endTime SUBSTRING(11,16):', a.endTime.substring(11, 16))
-
                       const [startDate, startTime] = a.startTime.split('T')
                       const service = config.services.find(s => s.id === a.serviceId)
                       const startDt = new Date(`${startDate}T${startTime}`)
@@ -2005,11 +2040,9 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       const calculatedEndTime = getLocalTimeFromDate(endDt)
 
                       const endTimeForForm = calculatedEndTime
-                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 1 - endTimeForForm BEFORE setForm:', endTimeForForm)
 
                       setEditingAppt(a)
-                      const formObject = { date: startDate, startTime: startTime.substring(0, 5), endTime: endTimeForForm, clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: a.professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' }
-                      console.log('🔍 [MonthCalendarView-handleEditAppt] STEP 2 - formObject.endTime:', formObject.endTime)
+                      const formObject = { date: startDate, startTime: startTime.substring(0, 5), endTime: endTimeForForm, clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: a.professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: a.recurrenceMetadata?.daysOfWeek || '', sessionCount: a.recurrenceMetadata?.totalSessions || 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' }
 
                       setForm(formObject)
                       setOpenModal(true)
@@ -2035,6 +2068,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${prof?.color || '#2563FF'}15`; (e.currentTarget as HTMLElement).style.borderColor = `${prof?.color || '#2563FF'}40` }}
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <span style={{ fontSize: 7, fontWeight: 600, color: '#60a5fa' }}>{a.startTime.substring(11, 16)}</span>
                           <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
                           <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
                             {a.patientLabel && <span style={{ fontWeight: 600 }}>{a.patientLabel}</span>}
@@ -2074,7 +2108,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hora Fin</label>
-                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={(e) => { console.log('🔍 [INPUT-endTime] FOCUSED - form.endTime:', form.endTime, '| input.value:', e.target.value); focus(e) }} onBlur={blur} />
+                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
               </div>
             </div>
 
@@ -2110,50 +2144,79 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </div>
             )}
 
-            {/* Recurrencia */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Repetir turno</label>
-              <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                <option value="">No repetir (una sola vez)</option>
-                <optgroup label="Selecciona los días que se repite:">
-                  <option value="1">Todos los lunes</option>
-                  <option value="2">Todos los martes</option>
-                  <option value="3">Todos los miércoles</option>
-                  <option value="4">Todos los jueves</option>
-                  <option value="5">Todos los viernes</option>
-                  <option value="1,3,5">Lunes, miércoles, viernes</option>
-                  <option value="2,4">Martes y jueves</option>
-                  <option value="1,2,3,4,5">Lunes a viernes</option>
-                  <option value="0,6">Fines de semana</option>
-                  <option value="1,2,3,4,5,0,6">Todos los días</option>
-                </optgroup>
-              </select>
-            </div>
-
-            {/* Cantidad de sesiones */}
-            {form.recurring && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>¿Cuántas sesiones?</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="52"
-                  value={form.sessionCount}
-                  onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
-                  style={inputStyle}
-                  onFocus={focus}
-                  onBlur={blur}
-                  placeholder="Ej: 10 para 10 sesiones en esos días"
-                />
-                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
-                  <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
-                    ✓ Se crearán {form.sessionCount} sesiones
-                  </p>
-                  <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
-                    Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+            {editingAppt?.recurrenceGroupId && editingAppt?.recurrenceMetadata && (
+              <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)', margin: '0 0 12px 0', display: 'flex', gap: 6, alignItems: 'center' }}>
+                  📅 TURNO RECURRENTE
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Frecuencia:</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{getDaysOfWeekNames(editingAppt.recurrenceMetadata.daysOfWeek)}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Sesión:</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{editingAppt.recurrenceMetadata.session} de {editingAppt.recurrenceMetadata.totalSessions}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Restan:</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{editingAppt.recurrenceMetadata.totalSessions - editingAppt.recurrenceMetadata.session} sesiones</p>
+                  </div>
+                  <p style={{ fontSize: 9, color: 'rgba(255,165,0,0.6)', margin: '8px 0 0 0', lineHeight: '1.4' }}>
+                    ⚠️ La recurrencia no puede modificarse. Para cambiarla elimine la serie y cree una nueva.
                   </p>
                 </div>
               </div>
+            )}
+
+            {!editingAppt && (
+              <>
+                {/* Recurrencia */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Repetir turno</label>
+                  <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value="">No repetir (una sola vez)</option>
+                    <optgroup label="Selecciona los días que se repite:">
+                      <option value="1">Todos los lunes</option>
+                      <option value="2">Todos los martes</option>
+                      <option value="3">Todos los miércoles</option>
+                      <option value="4">Todos los jueves</option>
+                      <option value="5">Todos los viernes</option>
+                      <option value="1,3,5">Lunes, miércoles, viernes</option>
+                      <option value="2,4">Martes y jueves</option>
+                      <option value="1,2,3,4,5">Lunes a viernes</option>
+                      <option value="0,6">Fines de semana</option>
+                      <option value="1,2,3,4,5,0,6">Todos los días</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                {/* Cantidad de sesiones */}
+                {form.recurring && (
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>¿Cuántas sesiones?</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="52"
+                      value={form.sessionCount}
+                      onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
+                      style={inputStyle}
+                      onFocus={focus}
+                      onBlur={blur}
+                      placeholder="Ej: 10 para 10 sesiones en esos días"
+                    />
+                    <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
+                      <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
+                        ✓ Se crearán {form.sessionCount} sesiones
+                      </p>
+                      <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
+                        Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div style={{ marginBottom: 16 }}>
@@ -2203,6 +2266,106 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                 Guardar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {selectedDayForModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998 }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ color: 'white', margin: 0, fontSize: 18, fontWeight: 700 }}>
+                {selectedDayForModal.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </h2>
+              <button
+                onClick={() => setSelectedDayForModal(null)}
+                style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 24, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {getAppointmentsForDay(selectedDayForModal).length === 0 ? (
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, textAlign: 'center', margin: '16px 0' }}>
+                  No hay turnos este día
+                </p>
+              ) : (
+                getAppointmentsForDay(selectedDayForModal)
+                  .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                  .map(appt => {
+                    const prof = config.professionals.find(p => p.id === appt.professionalId)
+                    return (
+                      <div
+                        key={appt.id}
+                        style={{
+                          background: `${prof?.color || '#2563FF'}15`,
+                          border: `1px solid ${prof?.color || '#2563FF'}40`,
+                          borderRadius: 8,
+                          padding: 12,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#60a5fa', marginBottom: 4 }}>
+                            {appt.startTime.substring(11, 16)}
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
+                            {appt.clientName}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            onClick={() => {
+                              const [startDate, startTime] = appt.startTime.split('T')
+                              const service = config.services.find(s => s.id === appt.serviceId)
+                              const startDt = new Date(`${startDate}T${startTime}`)
+                              const endDt = new Date(startDt.getTime() + (service?.durationMinutes || 60) * 60 * 1000)
+                              const calculatedEndTime = getLocalTimeFromDate(endDt)
+                              setEditingAppt(appt)
+                              setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: calculatedEndTime, clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', profId: appt.professionalId, serviceId: appt.serviceId, status: appt.status as any, notes: appt.notes || '', capacityPerHour: appt.capacityPerHour || 1, recurring: appt.recurrenceMetadata?.daysOfWeek || '', sessionCount: appt.recurrenceMetadata?.totalSessions || 1, patientLabel: appt.patientLabel || '', healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
+                              setOpenModal(true)
+                              setSelectedDayForModal(null)
+                            }}
+                            style={{ padding: '6px 10px', fontSize: 11, background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(59,130,246,0.3)' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(59,130,246,0.2)' }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAppointmentToDelete(appt)
+                              setDeleteModalOpen(true)
+                              setSelectedDayForModal(null)
+                            }}
+                            style={{ padding: '6px 10px', fontSize: 11, background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.3)' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.2)' }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedDayForModal(null)
+                handleCreateTurno(selectedDayForModal)
+              }}
+              style={{ width: '100%', padding: '12px 16px', background: 'rgba(34,197,94,0.2)', border: '1px solid rgba(34,197,94,0.4)', color: '#34d399', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.3)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.2)' }}
+            >
+              + Crear turno
+            </button>
           </div>
         </div>
       )}
@@ -2262,6 +2425,7 @@ function ProfessionalCalendarView({ config, saveConfig, generalConfig, professio
   const [form, setForm] = useState({ date: '', startTime: '09:00', endTime: '10:00', clientName: '', clientWhatsApp: '', clientEmail: '', profId: professionalId, serviceId: '', status: 'confirmed' as const, notes: '', capacityPerHour: 1, recurring: '', sessionCount: 1, patientLabel: '', healthInsurance: '', membershipNumber: '' })
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null)
+  const [selectedDayForModal, setSelectedDayForModal] = useState<Date | null>(null)
   const savingRef = useRef(false)
 
   const prof = config.professionals.find(p => p.id === professionalId)
@@ -2471,7 +2635,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
           return (
             <div
               key={idx}
-              onClick={() => date && setMonthView(date)}
+              onClick={() => date && setSelectedDayForModal(date)}
               style={{
                 minHeight: 120,
                 background: date ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.2)',
@@ -2523,20 +2687,8 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       const endDt = new Date(startDt.getTime() + (service?.durationMinutes || 60) * 60 * 1000)
                       const calculatedEndTime = getLocalTimeFromDate(endDt)
 
-                      console.log('🔍 [ProfessionalCalendarView-handleEditAppt] TIMEZONE DEBUG:', {
-                        startDate: startDate,
-                        startTime: startTime,
-                        startDt_toString: startDt.toString(),
-                        startDt_toISOString: startDt.toISOString(),
-                        service_durationMinutes: service?.durationMinutes,
-                        endDt_toString: endDt.toString(),
-                        endDt_toISOString: endDt.toISOString(),
-                        calculatedEndTime: calculatedEndTime,
-                        appt_original_endTime: a.endTime
-                      })
-
                       setEditingAppt(a)
-                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: calculatedEndTime, clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: '', sessionCount: 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
+                      setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: calculatedEndTime, clientName: a.clientName, clientWhatsApp: a.clientWhatsApp || '', clientEmail: a.clientEmail || '', profId: professionalId, serviceId: a.serviceId, status: a.status as any, notes: a.notes || '', capacityPerHour: a.capacityPerHour || 1, recurring: a.recurrenceMetadata?.daysOfWeek || '', sessionCount: a.recurrenceMetadata?.totalSessions || 1, patientLabel: a.patientLabel || '', healthInsurance: a.healthInsurance || '', membershipNumber: a.membershipNumber || '' })
                       setOpenModal(true)
                     }
                     return (
@@ -2560,6 +2712,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = `${prof.color}15`; (e.currentTarget as HTMLElement).style.borderColor = `${prof.color}40` }}
                     >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <span style={{ fontSize: 7, fontWeight: 600, color: '#60a5fa' }}>{a.startTime.substring(11, 16)}</span>
                         <strong style={{ fontSize: 8, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.clientName}</strong>
                         <span style={{ fontSize: 7, opacity: 0.8, lineHeight: 1, display: 'flex', gap: '2px', alignItems: 'center' }}>
                           {a.patientLabel && <span style={{ fontWeight: 600 }}>{a.patientLabel}</span>}
@@ -2582,6 +2735,106 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
         })}
       </div>
 
+      {selectedDayForModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998 }}>
+          <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ color: 'white', margin: 0, fontSize: 18, fontWeight: 700 }}>
+                {selectedDayForModal.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </h2>
+              <button
+                onClick={() => setSelectedDayForModal(null)}
+                style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 24, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {getAppointmentsForDay(selectedDayForModal).length === 0 ? (
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, textAlign: 'center', margin: '16px 0' }}>
+                  No hay turnos este día
+                </p>
+              ) : (
+                getAppointmentsForDay(selectedDayForModal)
+                  .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                  .map(appt => {
+                    const profAppt = config.professionals.find(p => p.id === appt.professionalId)
+                    return (
+                      <div
+                        key={appt.id}
+                        style={{
+                          background: `${profAppt?.color || '#2563FF'}15`,
+                          border: `1px solid ${profAppt?.color || '#2563FF'}40`,
+                          borderRadius: 8,
+                          padding: 12,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#60a5fa', marginBottom: 4 }}>
+                            {appt.startTime.substring(11, 16)}
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
+                            {appt.clientName}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            onClick={() => {
+                              const [startDate, startTime] = appt.startTime.split('T')
+                              const service = config.services.find(s => s.id === appt.serviceId)
+                              const startDt = new Date(`${startDate}T${startTime}`)
+                              const endDt = new Date(startDt.getTime() + (service?.durationMinutes || 60) * 60 * 1000)
+                              const calculatedEndTime = getLocalTimeFromDate(endDt)
+                              setEditingAppt(appt)
+                              setForm({ date: startDate, startTime: startTime.substring(0, 5), endTime: calculatedEndTime, clientName: appt.clientName, clientWhatsApp: appt.clientWhatsApp || '', clientEmail: appt.clientEmail || '', profId: appt.professionalId, serviceId: appt.serviceId, status: appt.status as any, notes: appt.notes || '', capacityPerHour: appt.capacityPerHour || 1, recurring: appt.recurrenceMetadata?.daysOfWeek || '', sessionCount: appt.recurrenceMetadata?.totalSessions || 1, patientLabel: appt.patientLabel || '', healthInsurance: appt.healthInsurance || '', membershipNumber: appt.membershipNumber || '' })
+                              setOpenModal(true)
+                              setSelectedDayForModal(null)
+                            }}
+                            style={{ padding: '6px 10px', fontSize: 11, background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)', color: '#60a5fa', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(59,130,246,0.3)' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(59,130,246,0.2)' }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAppointmentToDelete(appt)
+                              setDeleteModalOpen(true)
+                              setSelectedDayForModal(null)
+                            }}
+                            style={{ padding: '6px 10px', fontSize: 11, background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)', color: '#ef4444', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.3)' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.2)' }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedDayForModal(null)
+                handleCreateTurno(selectedDayForModal)
+              }}
+              style={{ width: '100%', padding: '12px 16px', background: 'rgba(34,197,94,0.2)', border: '1px solid rgba(34,197,94,0.4)', color: '#34d399', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.3)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(34,197,94,0.2)' }}
+            >
+              + Crear turno
+            </button>
+          </div>
+        </div>
+      )}
+
       {openModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: 'linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95))', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
@@ -2599,7 +2852,7 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hora Fin</label>
-                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={(e) => { console.log('🔍 [INPUT-endTime] FOCUSED - form.endTime:', form.endTime, '| input.value:', e.target.value); focus(e) }} onBlur={blur} />
+                <input type="time" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur} />
               </div>
             </div>
 
@@ -2632,48 +2885,77 @@ Si necesitás cancelar o cambiar la fecha, respondé este mensaje.`
               </div>
             )}
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Repetir turno</label>
-              <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
-                <option value="">No repetir (una sola vez)</option>
-                <optgroup label="Selecciona los días que se repite:">
-                  <option value="1">Todos los lunes</option>
-                  <option value="2">Todos los martes</option>
-                  <option value="3">Todos los miércoles</option>
-                  <option value="4">Todos los jueves</option>
-                  <option value="5">Todos los viernes</option>
-                  <option value="1,3,5">Lunes, miércoles, viernes</option>
-                  <option value="2,4">Martes y jueves</option>
-                  <option value="1,2,3,4,5">Lunes a viernes</option>
-                  <option value="0,6">Fines de semana</option>
-                  <option value="1,2,3,4,5,0,6">Todos los días</option>
-                </optgroup>
-              </select>
-            </div>
-
-            {form.recurring && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>¿Cuántas sesiones?</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="52"
-                  value={form.sessionCount}
-                  onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
-                  style={inputStyle}
-                  onFocus={focus}
-                  onBlur={blur}
-                  placeholder="Ej: 10 para 10 sesiones en esos días"
-                />
-                <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
-                  <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
-                    ✓ Se crearán {form.sessionCount} sesiones
-                  </p>
-                  <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
-                    Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+            {editingAppt?.recurrenceGroupId && editingAppt?.recurrenceMetadata && (
+              <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)', margin: '0 0 12px 0', display: 'flex', gap: 6, alignItems: 'center' }}>
+                  📅 TURNO RECURRENTE
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Frecuencia:</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{getDaysOfWeekNames(editingAppt.recurrenceMetadata.daysOfWeek)}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Sesión:</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{editingAppt.recurrenceMetadata.session} de {editingAppt.recurrenceMetadata.totalSessions}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', margin: '0 0 4px 0', fontWeight: 600 }}>Restan:</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{editingAppt.recurrenceMetadata.totalSessions - editingAppt.recurrenceMetadata.session} sesiones</p>
+                  </div>
+                  <p style={{ fontSize: 9, color: 'rgba(255,165,0,0.6)', margin: '8px 0 0 0', lineHeight: '1.4' }}>
+                    ⚠️ La recurrencia no puede modificarse. Para cambiarla elimine la serie y cree una nueva.
                   </p>
                 </div>
               </div>
+            )}
+
+            {!editingAppt && (
+              <>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Repetir turno</label>
+                  <select value={form.recurring} onChange={e => setForm({ ...form, recurring: e.target.value })} style={inputStyle} onFocus={focus} onBlur={blur}>
+                    <option value="">No repetir (una sola vez)</option>
+                    <optgroup label="Selecciona los días que se repite:">
+                      <option value="1">Todos los lunes</option>
+                      <option value="2">Todos los martes</option>
+                      <option value="3">Todos los miércoles</option>
+                      <option value="4">Todos los jueves</option>
+                      <option value="5">Todos los viernes</option>
+                      <option value="1,3,5">Lunes, miércoles, viernes</option>
+                      <option value="2,4">Martes y jueves</option>
+                      <option value="1,2,3,4,5">Lunes a viernes</option>
+                      <option value="0,6">Fines de semana</option>
+                      <option value="1,2,3,4,5,0,6">Todos los días</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                {form.recurring && (
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>¿Cuántas sesiones?</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="52"
+                      value={form.sessionCount}
+                      onChange={e => setForm({ ...form, sessionCount: Number(e.target.value) })}
+                      style={inputStyle}
+                      onFocus={focus}
+                      onBlur={blur}
+                      placeholder="Ej: 10 para 10 sesiones en esos días"
+                    />
+                    <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 12px', marginTop: 10 }}>
+                      <p style={{ color: '#34d399', fontSize: 11, fontWeight: 600, margin: '0 0 4px' }}>
+                        ✓ Se crearán {form.sessionCount} sesiones
+                      </p>
+                      <p style={{ color: 'rgba(52,212,153,0.7)', fontSize: 10, margin: 0 }}>
+                        Comenzando desde {form.date && new Date(form.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} a las {form.startTime}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div style={{ marginBottom: 16 }}>
