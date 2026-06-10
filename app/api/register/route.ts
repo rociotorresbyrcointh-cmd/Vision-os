@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,12 +14,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    // Cliente 1: Supabase público para autenticación estándar
+    const supabasePublic = createClient(
+      supabaseUrl,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    // Cliente 2: Supabase admin para business_config (RLS bypassed)
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // Crear usuario en Supabase Auth
     console.log('📝 Registrando:', email)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabasePublic.auth.signUp({
       email,
       password,
       options: {
@@ -54,8 +63,8 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ Usuario creado en Auth:', userCreated)
 
-    // Guardar configuración del negocio
-    const { error: configError } = await supabase
+    // Guardar configuración del negocio (admin client bypasses RLS)
+    const { error: configError } = await supabaseAdmin
       .from('business_config')
       .insert({
         id: `config_${Date.now()}`,
