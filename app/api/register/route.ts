@@ -107,6 +107,36 @@ export async function POST(req: NextRequest) {
     }
     console.log('=== END CONFIG DEBUG ===')
 
+    // Crear trial de 7 días (admin client bypasses RLS)
+    console.log('📝 Intentando crear trial de 7 días...')
+    const trialExpiresAt = new Date()
+    trialExpiresAt.setDate(trialExpiresAt.getDate() + 7)
+    console.log('   user_id:', authData.user!.id)
+    console.log('   status:', 'trial')
+    console.log('   trial_expires_at:', trialExpiresAt.toISOString())
+
+    const { error: trialError, data: trialData } = await supabaseAdmin
+      .from('trial_status')
+      .insert({
+        user_id: authData.user!.id,
+        trial_expires_at: trialExpiresAt.toISOString(),
+        status: 'trial'
+      })
+      .select()
+
+    console.log('=== TRIAL INSERT RESPONSE ===')
+    console.log('trialError exists:', !!trialError)
+    if (trialError) {
+      console.error('❌ Trial error:', JSON.stringify(trialError, null, 2))
+      console.error('   Code:', trialError.code)
+      console.error('   Message:', trialError.message)
+      console.warn('⚠️ Trial insert failed (non-critical for auth)')
+    } else {
+      console.log('✅ Trial created successfully')
+      console.log('   Data returned:', JSON.stringify(trialData, null, 2))
+    }
+    console.log('=== END TRIAL DEBUG ===')
+
     console.log('✅ Registro completado exitosamente')
     console.log('=== FINAL RESPONSE ===')
     const response = {
