@@ -209,7 +209,7 @@ export default function TurnosPage() {
   }, [user])
 
   // Sincronizar a Supabase automáticamente
-  useTurnosSync(user?.id, config)
+  // useTurnosSync(user?.id, config)  // Deshabilitado: Hook es redundante con updateAppointmentFlow que ya sincroniza a Supabase. Ver AUDITORIA_USETNORSYNC.md
 
   // Sincronizar turnos con el servidor cada vez que cambian
   useEffect(() => {
