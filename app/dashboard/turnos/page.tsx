@@ -8,7 +8,7 @@ import { sendWhatsAppFromClient } from '@/lib/whatsapp-client'
 import { getPendingReminders, sendPendingReminders } from '@/lib/reminders-service'
 import { syncTurnosWithServer } from '@/lib/sync-service'
 import { getProfessionals, getServices, getAppointments, getBusinessConfig, addMultipleAppointments, updateAppointment, deleteAppointment, addProfessional as supabaseAddProfessional, updateProfessional as supabaseUpdateProfessional, deleteProfessional as supabaseDeleteProfessional, addService as addServiceSB, updateService as updateServiceSB, deleteService as deleteServiceSB, countAppointmentsByService, addAppointment as supabaseAddAppointment, addMultipleAppointments as supabaseAddMultipleAppointments, updateAppointment as supabaseUpdateAppointment, deleteAppointment as supabaseDeleteAppointment, updateAppointmentFlow } from '@/lib/supabase-operations'
-import { generateAppointments } from '@/lib/appointment-helpers'
+import { generateAppointments, isTimeBlocked } from '@/lib/appointment-helpers'
 import { useTurnosSync } from '@/lib/use-turnos-sync'
 
 const inputStyle: React.CSSProperties = {
@@ -1137,6 +1137,28 @@ function CalendarView({ config, saveConfig, generalConfig, user }: { config: Tur
 
     const service = config.services.find(s => s.id === form.serviceId)
     if (!service) return
+
+    // Validación de bloqueos
+    if (!editingAppt) {
+      const startDateTime = `${form.date}T${form.startTime}`
+      const endDate = new Date(new Date(startDateTime).getTime() + service.durationMinutes * 60 * 1000)
+      const endDateTime = endDate.toISOString()
+
+      if (form.recurring) {
+        // Para recurrencias, validar que al menos una sesión no esté bloqueada
+        const appointments = generateAppointments(form, config, service)
+        if (appointments.length === 0) {
+          alert('❌ Todas las fechas seleccionadas están bloqueadas. No se puede crear la serie.')
+          return
+        }
+      } else {
+        // Para turno individual, validar directamente
+        if (isTimeBlocked(config, form.profId, startDateTime, endDateTime)) {
+          alert('❌ Este horario está bloqueado. No puedes crear un turno en este rango.')
+          return
+        }
+      }
+    }
 
     // Validación de capacidad (para turnos simples Y recurrencias)
     if (!editingAppt) {

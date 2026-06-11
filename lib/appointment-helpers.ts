@@ -10,6 +10,27 @@ function generateUUID(): string {
 }
 
 /**
+ * Check if a time slot is blocked (globally or for a specific professional)
+ */
+export function isTimeBlocked(
+  config: TurnosConfig,
+  professionalId: string,
+  startTime: string, // ISO 8601: "2026-07-09T09:00"
+  endTime: string    // ISO 8601: "2026-07-09T10:00"
+): boolean {
+  return config.blockedTimes.some(block => {
+    // If block has a professionalId, only apply to that professional
+    if (block.professionalId && block.professionalId !== professionalId) {
+      return false
+    }
+
+    // Check if appointment time overlaps with blocked time
+    // Overlap occurs if: startTime < block.endTime AND endTime > block.startTime
+    return startTime < block.endTime && endTime > block.startTime
+  })
+}
+
+/**
  * UNIFIED appointment generation logic used by ALL calendar views
  * This is the SINGLE SOURCE OF TRUTH for how appointments are created
  */
@@ -36,33 +57,37 @@ export function generateAppointments(
         const startDateTime = `${dateKey}T${form.startTime}`
         const apptStartDate = new Date(startDateTime)
         const apptEndDate = new Date(apptStartDate.getTime() + service.durationMinutes * 60 * 1000)
+        const endDateTime = apptEndDate.toISOString()
 
-        appointments.push({
-          id: `${Date.now()}_${sessionsCreated}_${Math.random().toString(36).substring(2)}`,
-          clientName: form.clientName,
-          clientWhatsApp: form.clientWhatsApp,
-          clientEmail: form.clientEmail,
-          professionalId: form.profId,
-          serviceId: form.serviceId,
-          startTime: startDateTime,
-          endTime: apptEndDate.toISOString(),
-          status: form.status,
-          notes: form.notes,
-          capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
-          patientLabel: form.patientLabel,
-          healthInsurance: form.healthInsurance,
-          membershipNumber: form.membershipNumber,
-          createdAt: new Date().toISOString(),
-          source: 'admin',
-          recurrenceGroupId,
-          recurrenceCreatedAt,
-          recurrenceMetadata: {
-            session: sessionsCreated + 1,
-            totalSessions: sessionCount,
-            daysOfWeek: form.recurring,
-          },
-        })
-        sessionsCreated++
+        // Skip if this time slot is blocked for this professional
+        if (!isTimeBlocked(config, form.profId, startDateTime, endDateTime)) {
+          appointments.push({
+            id: `${Date.now()}_${sessionsCreated}_${Math.random().toString(36).substring(2)}`,
+            clientName: form.clientName,
+            clientWhatsApp: form.clientWhatsApp,
+            clientEmail: form.clientEmail,
+            professionalId: form.profId,
+            serviceId: form.serviceId,
+            startTime: startDateTime,
+            endTime: endDateTime,
+            status: form.status,
+            notes: form.notes,
+            capacityPerHour: form.capacityPerHour ? Number(form.capacityPerHour) : 1,
+            patientLabel: form.patientLabel,
+            healthInsurance: form.healthInsurance,
+            membershipNumber: form.membershipNumber,
+            createdAt: new Date().toISOString(),
+            source: 'admin',
+            recurrenceGroupId,
+            recurrenceCreatedAt,
+            recurrenceMetadata: {
+              session: sessionsCreated + 1,
+              totalSessions: sessionCount,
+              daysOfWeek: form.recurring,
+            },
+          })
+          sessionsCreated++
+        }
       }
       currentDate.setDate(currentDate.getDate() + 1)
     }
